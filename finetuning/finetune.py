@@ -14,14 +14,12 @@ import wandb
 parser = argparse.ArgumentParser()
 parser.add_argument('--language_name', type=str, default='Romanian')
 parser.add_argument('--code', type=str, default='ro')
-parser.add_argument('--splits', type=list, default=[1500, 3000, 12000])
+parser.add_argument('--splits', nargs=3, type=int, default=[1500, 3000, 12000])
 parser.add_argument('--num_epochs', type=int, default=25)
 parser.add_argument('--batch_size', type=int, default=16)
 args = parser.parse_args()
-args.splits = [int(x) for x in args.splits if x != ',']
-print(args.splits)
-print(type(args.splits))
-exit
+
+
 model_checkpoint = "t5-small"
 language = {}
 language['name'] = args.language_name
