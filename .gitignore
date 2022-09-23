@@ -184,3 +184,4 @@ data/
 Code/Data/
 # PyTorch Lighting's logs
 lightning_logs/
+*.out

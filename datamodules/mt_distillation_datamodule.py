@@ -11,7 +11,7 @@ import torch
 class MTDistillationDatamodule(pl.LightningDataModule):
     def __init__(
         self,
-        tokenizer_name: str = "Helsinki-NLP/opus-mt-en-ro",
+        tokenizer_name: str = "t5-small",
         dataset_names: list = ["din0s/ccmatrix_en-ro", "j0hngou/ccmatrix_en-fr"],
         source_target_pair: list = [("en", "ro"), ("en", "fr")],
         data_dir: str = "./data",
@@ -30,7 +30,7 @@ class MTDistillationDatamodule(pl.LightningDataModule):
     def setup(self, stage: Optional[str] = None):
         # TODO: split
         # Create a list with all the datasets and then concat them
-        datasets = [MTDistillationDataset(name, pair[0], pair[1], preappend_tg_lang=True)
+        datasets = [MTDistillationDataset(name, pair[0], pair[1])
                     for pair, name in zip(self.hparams.source_target_pair, self.hparams.dataset_names)]
         self.dataset = ConcatDataset(datasets)
 
@@ -50,29 +50,30 @@ class MTDistillationDatamodule(pl.LightningDataModule):
         sentences = {}
 
         # Tokenize
-        source_ids = self.tokenizer([sentence[0] for sentence in batch], return_tensors="pt", padding=True)
-        target_ids = self.tokenizer([sentence[1] for sentence in batch], return_tensors="pt", padding=True).input_ids
+        source = self.tokenizer([sentence[0] for sentence in batch], return_tensors="pt", padding=True)
+        target = self.tokenizer([sentence[1] for sentence in batch], return_tensors="pt", padding=True)
 
         # Group sentences by language pairs
         for pair in self.hparams.source_target_pair:
             sentences[f"{pair[0]}-{pair[1]}"] = {}
-            sentences[f"{pair[0]}-{pair[1]}"]['source'] = torch.stack([source_ids.input_ids[i] for i, sample in enumerate(batch)
+            sentences[f"{pair[0]}-{pair[1]}"]['source'] = torch.stack([source.input_ids[i] for i, sample in enumerate(batch)
                                                            if tuple(sample[2:]) == pair])
-            sentences[f"{pair[0]}-{pair[1]}"]['attention_mask'] = torch.stack([source_ids.attention_mask[i] for i, sample in enumerate(batch)
+            sentences[f"{pair[0]}-{pair[1]}"]['attention_mask'] = torch.stack([source.attention_mask[i] for i, sample in enumerate(batch)
                                                            if tuple(sample[2:]) == pair])
-            sentences[f"{pair[0]}-{pair[1]}"]['target'] = torch.stack([target_ids[i] for i, sample in enumerate(batch)
+            sentences[f"{pair[0]}-{pair[1]}"]['target'] = torch.stack([target.input_ids[i] for i, sample in enumerate(batch)
+                                                           if tuple(sample[2:]) == pair])
+            sentences[f"{pair[0]}-{pair[1]}"]['decoder_attention_mask'] = torch.stack([target.attention_mask[i] for i, sample in enumerate(batch)
                                                            if tuple(sample[2:]) == pair])
 
         return sentences
 
 
 class MTDistillationDataset(Dataset):
-    def __init__(self, dataset_name, source_lang, target_lang, preappend_tg_lang=True):
+    def __init__(self, dataset_name, source_lang, target_lang):
 
         self.dataset = load_dataset(dataset_name, use_auth_token=True)["train"]
         self.source_lang = source_lang
         self.target_lang = target_lang
-        self.preappend_tg_lang = preappend_tg_lang
 
         self.process_data()
 
