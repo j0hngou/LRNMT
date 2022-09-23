@@ -5,6 +5,7 @@ from typing import Optional
 from torch.utils.data import ConcatDataset
 
 import pytorch_lightning as pl
+import torch
 
 
 class MTDistillationDatamodule(pl.LightningDataModule):
@@ -55,12 +56,12 @@ class MTDistillationDatamodule(pl.LightningDataModule):
         # Group sentences by language pairs
         for pair in self.hparams.source_target_pair:
             sentences[f"{pair[0]}-{pair[1]}"] = {}
-            sentences[f"{pair[0]}-{pair[1]}"]['source'] = [source_ids.input_ids[i] for i, sample in enumerate(batch)
-                                                           if tuple(sample[2:]) == pair]
-            sentences[f"{pair[0]}-{pair[1]}"]['attention_mask'] = [source_ids.attention_mask[i] for i, sample in enumerate(batch)
-                                                           if tuple(sample[2:]) == pair]
-            sentences[f"{pair[0]}-{pair[1]}"]['target'] = [target_ids[i] for i, sample in enumerate(batch)
-                                                           if tuple(sample[2:]) == pair]
+            sentences[f"{pair[0]}-{pair[1]}"]['source'] = torch.cat([source_ids.input_ids[i] for i, sample in enumerate(batch)
+                                                           if tuple(sample[2:]) == pair])
+            sentences[f"{pair[0]}-{pair[1]}"]['attention_mask'] = torch.cat([source_ids.attention_mask[i] for i, sample in enumerate(batch)
+                                                           if tuple(sample[2:]) == pair])
+            sentences[f"{pair[0]}-{pair[1]}"]['target'] = torch.cat([target_ids[i] for i, sample in enumerate(batch)
+                                                           if tuple(sample[2:]) == pair])
 
         return sentences
 
