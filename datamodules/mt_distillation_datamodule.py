@@ -30,7 +30,7 @@ class MTDistillationDatamodule(pl.LightningDataModule):
     def setup(self, stage: Optional[str] = None):
         # TODO: split
         # Create a list with all the datasets and then concat them
-        datasets = [MTDistillationDataset(name, pair[0], pair[1], preappend_tg_lang=True)
+        datasets = [MTDistillationDataset(name, pair[0], pair[1])
                     for pair, name in zip(self.hparams.source_target_pair, self.hparams.dataset_names)]
         self.dataset = ConcatDataset(datasets)
 
@@ -67,12 +67,11 @@ class MTDistillationDatamodule(pl.LightningDataModule):
 
 
 class MTDistillationDataset(Dataset):
-    def __init__(self, dataset_name, source_lang, target_lang, preappend_tg_lang=True):
+    def __init__(self, dataset_name, source_lang, target_lang):
 
         self.dataset = load_dataset(dataset_name, use_auth_token=True)["train"]
         self.source_lang = source_lang
         self.target_lang = target_lang
-        self.preappend_tg_lang = preappend_tg_lang
 
         self.process_data()
 
