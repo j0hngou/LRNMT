@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --partition=gpu_titanrtx_shared_course
+#SBATCH --partition=gpu_shared_course
 #SBATCH --gres=gpu:1
 #SBATCH --job-name=NMTDistill
 #SBATCH --ntasks=1
@@ -15,4 +15,4 @@ module load Anaconda3/2021.05
 
 source activate dl4nlp
 
-python finetune/finetune.py --language_name French --code fr --splits 100000 200000 1000000 --num_epochs 40 --batch_size 64 
+python finetuning/finetune.py --language_name French --code fr --splits 100000 200000 1000000 --num_epochs 40 --batch_size 64 
