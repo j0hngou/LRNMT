@@ -50,17 +50,19 @@ class MTDistillationDatamodule(pl.LightningDataModule):
         sentences = {}
 
         # Tokenize
-        source_ids = self.tokenizer([sentence[0] for sentence in batch], return_tensors="pt", padding=True)
-        target_ids = self.tokenizer([sentence[1] for sentence in batch], return_tensors="pt", padding=True).input_ids
+        source = self.tokenizer([sentence[0] for sentence in batch], return_tensors="pt", padding=True)
+        target = self.tokenizer([sentence[1] for sentence in batch], return_tensors="pt", padding=True)
 
         # Group sentences by language pairs
         for pair in self.hparams.source_target_pair:
             sentences[f"{pair[0]}-{pair[1]}"] = {}
-            sentences[f"{pair[0]}-{pair[1]}"]['source'] = torch.stack([source_ids.input_ids[i] for i, sample in enumerate(batch)
+            sentences[f"{pair[0]}-{pair[1]}"]['source'] = torch.stack([source.input_ids[i] for i, sample in enumerate(batch)
                                                            if tuple(sample[2:]) == pair])
-            sentences[f"{pair[0]}-{pair[1]}"]['attention_mask'] = torch.stack([source_ids.attention_mask[i] for i, sample in enumerate(batch)
+            sentences[f"{pair[0]}-{pair[1]}"]['attention_mask'] = torch.stack([source.attention_mask[i] for i, sample in enumerate(batch)
                                                            if tuple(sample[2:]) == pair])
-            sentences[f"{pair[0]}-{pair[1]}"]['target'] = torch.stack([target_ids[i] for i, sample in enumerate(batch)
+            sentences[f"{pair[0]}-{pair[1]}"]['target'] = torch.stack([target.input_ids[i] for i, sample in enumerate(batch)
+                                                           if tuple(sample[2:]) == pair])
+            sentences[f"{pair[0]}-{pair[1]}"]['decoder_attention_mask'] = torch.stack([target.attention_mask[i] for i, sample in enumerate(batch)
                                                            if tuple(sample[2:]) == pair])
 
         return sentences
