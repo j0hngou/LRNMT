@@ -8,6 +8,8 @@ import numpy as np
 from transformers import AutoTokenizer
 from transformers import AutoModelForSeq2SeqLM, DataCollatorForSeq2Seq, Seq2SeqTrainingArguments, Seq2SeqTrainer
 import argparse
+import wandb
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--language_name', type=str, default='Romanian')
@@ -16,7 +18,10 @@ parser.add_argument('--splits', type=list, default=[1500, 3000, 12000])
 parser.add_argument('--num_epochs', type=int, default=25)
 parser.add_argument('--batch_size', type=int, default=16)
 args = parser.parse_args()
-
+args.splits = [int(x) for x in args.splits if x != ',']
+print(args.splits)
+print(type(args.splits))
+exit
 model_checkpoint = "t5-small"
 language = {}
 language['name'] = args.language_name
@@ -79,6 +84,7 @@ args = Seq2SeqTrainingArguments(
     predict_with_generate=True,
     fp16=True,
     push_to_hub=True,
+    report_to='wandb',
 )
 
 data_collator = DataCollatorForSeq2Seq(tokenizer, model=model)
