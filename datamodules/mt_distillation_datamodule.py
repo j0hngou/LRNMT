@@ -5,12 +5,13 @@ from typing import Optional
 from torch.utils.data import ConcatDataset
 
 import pytorch_lightning as pl
+import torch
 
 
 class MTDistillationDatamodule(pl.LightningDataModule):
     def __init__(
         self,
-        tokenizer_names: list = ["Helsinki-NLP/opus-mt-en-ro", "Helsinki-NLP/opus-mt-en-fr",],
+        tokenizer_name: str = "Helsinki-NLP/opus-mt-en-ro",
         dataset_names: list = ["din0s/ccmatrix_en-ro", "j0hngou/ccmatrix_en-fr"],
         source_target_pair: list = [("en", "ro"), ("en", "fr")],
         data_dir: str = "./data",
@@ -22,8 +23,7 @@ class MTDistillationDatamodule(pl.LightningDataModule):
 
     def prepare_data(self):
         # Make sure the tokenizer and the dataset are downloaded
-        for tokenizer in self.hparams.tokenizer_names:
-            AutoTokenizer.from_pretrained(tokenizer)
+        AutoTokenizer.from_pretrained(self.hparams.tokenizer_name)
         for dataset in self.hparams.dataset_names:
             load_dataset(dataset, use_auth_token=True)
 
@@ -34,13 +34,8 @@ class MTDistillationDatamodule(pl.LightningDataModule):
                     for pair, name in zip(self.hparams.source_target_pair, self.hparams.dataset_names)]
         self.dataset = ConcatDataset(datasets)
 
-        # Create a tokenizer for each pair including the multilingual one
-        self.tokenizers = {}
-        for pair, tokenizer in zip(self.hparams.source_target_pair, self.hparams.tokenizer_names):
-            self.tokenizers[f"{pair[0]}-{pair[1]}"] = AutoTokenizer.from_pretrained(tokenizer)
-
-        # TODO: need to create a new one with the whole vocab and the pre-appended token for the target language
-        self.multiling_tokenizer = self.tokenizers["en-ro"]
+        # Create the tokenizer
+        self.tokenizer = AutoTokenizer.from_pretrained(self.hparams.tokenizer_name)
 
     def train_dataloader(self) -> DataLoader:
         return DataLoader(
@@ -52,35 +47,23 @@ class MTDistillationDatamodule(pl.LightningDataModule):
         )
 
     def collate_fn(self, batch: list[dict[str, str]]):
-        biling_sentences = {}
-        multiling_sentence = {}
+        sentences = {}
 
-        # Group pairs for tokenization
+        # Tokenize
+        source_ids = self.tokenizer([sentence[0] for sentence in batch], return_tensors="pt", padding=True)
+        target_ids = self.tokenizer([sentence[1] for sentence in batch], return_tensors="pt", padding=True).input_ids
+
+        # Group sentences by language pairs
         for pair in self.hparams.source_target_pair:
-            biling_sentences[f"{pair[0]}-{pair[1]}"] = [sample[:2] for sample in batch if tuple(sample[2:]) == pair]
-            # same as above but pre-append target language identification token
-            multiling_sentence[f"{pair[0]}-{pair[1]}"] = [(f"<{pair[1]}> " + sample[0], sample[1]) for sample in batch
-                                                          if tuple(sample[2:]) == pair]
+            sentences[f"{pair[0]}-{pair[1]}"] = {}
+            sentences[f"{pair[0]}-{pair[1]}"]['source'] = torch.cat([source_ids.input_ids[i] for i, sample in enumerate(batch)
+                                                           if tuple(sample[2:]) == pair])
+            sentences[f"{pair[0]}-{pair[1]}"]['attention_mask'] = torch.cat([source_ids.attention_mask[i] for i, sample in enumerate(batch)
+                                                           if tuple(sample[2:]) == pair])
+            sentences[f"{pair[0]}-{pair[1]}"]['target'] = torch.cat([target_ids[i] for i, sample in enumerate(batch)
+                                                           if tuple(sample[2:]) == pair])
 
-        # Tokenize each language from each pair separately
-        biling_ids = {}
-        multiling_ids = {}
-        for pair in biling_sentences.keys():
-            # Skip pairs with less than 2 samples
-            if len(biling_sentences[pair]) < 2:
-                continue
-            biling_ids[pair] = {
-                "source": self.tokenizers[pair]([sentence[0] for sentence in biling_sentences[pair]], return_tensors="pt", padding=True).input_ids,
-                "target": self.tokenizers[pair]([sentence[1] for sentence in biling_sentences[pair]], return_tensors="pt", padding=True).input_ids,
-            }
-            # TODO: not sure if we need the target_ids from the multilingual or the bilingial tokenizer for the multilingual model
-            # TODO: TO-REVISIT
-            multiling_ids[pair] = {
-                "source": self.multiling_tokenizer([sentnece[0] for sentnece in multiling_sentence[pair]], return_tensors="pt", padding=True).input_ids,
-                "target": self.multiling_tokenizer([sentence[1] for sentence in multiling_sentence[pair]], return_tensors="pt", padding=True).input_ids,
-            }
-
-        return {"biling_ids": biling_ids, "multiling_ids": multiling_ids}
+        return sentences
 
 
 class MTDistillationDataset(Dataset):
@@ -114,6 +97,26 @@ class MTDistillationDataset(Dataset):
         return new_batch
 
     def __getitem__(self, idx):
-        source = self.dataset[idx][self.source_lang]
+        src_lang = self.get_full_lang_name(self.source_lang)
+        tgt_lang = self.get_full_lang_name(self.target_lang)
+        prefix = f"translate {src_lang} to {tgt_lang}: "
+
+        source = prefix + self.dataset[idx][self.source_lang]
         target = self.dataset[idx][self.target_lang]
+
         return source, target, self.source_lang, self.target_lang
+
+    @staticmethod
+    def get_full_lang_name(lang):
+        if lang == "en":
+            return "English"
+        elif lang == "ro":
+            return "Romanian"
+        elif lang == "de":
+            return "German"
+        elif lang == "fr":
+            return "French"
+        elif lang == "it":
+            return "Italian"
+        else:
+            raise ValueError(f"Language {lang} not supported")
