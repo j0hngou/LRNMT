@@ -49,7 +49,7 @@ prefix = f"translate English to {language['name']}: "
 max_input_length = 256
 max_target_length = 256
 source_lang = "en"
-target_lang = "it"
+target_lang = f"{language['code']}"
 
 def preprocess_function(examples):
     inputs = [prefix + ex[source_lang] for ex in examples["translation"]]
