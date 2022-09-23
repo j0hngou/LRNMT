@@ -11,7 +11,7 @@ import torch
 class MTDistillationDatamodule(pl.LightningDataModule):
     def __init__(
         self,
-        tokenizer_name: str = "Helsinki-NLP/opus-mt-en-ro",
+        tokenizer_name: str = "t5-small",
         dataset_names: list = ["din0s/ccmatrix_en-ro", "j0hngou/ccmatrix_en-fr"],
         source_target_pair: list = [("en", "ro"), ("en", "fr")],
         data_dir: str = "./data",
