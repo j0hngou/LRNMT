@@ -1,0 +1,18 @@
+#!/bin/bash
+
+#SBATCH --partition=gpu_titanrtx_shared_course
+#SBATCH --gres=gpu:1
+#SBATCH --job-name=NMTDistill
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=6
+#SBATCH --time=48:00:00
+#SBATCH --mem=100000M
+#SBATCH --output=lisa/outputs/dl4nlp_finetune_%A.out
+
+module purge
+module load 2021
+module load Anaconda3/2021.05
+
+source activate dl4nlp
+
+python finetune/finetune.py --language_name French --code fr --splits '800000, 900000, 1000000' --num_epochs 40 --batch_size 64 
