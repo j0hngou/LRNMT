@@ -56,11 +56,11 @@ class MTDistillationDatamodule(pl.LightningDataModule):
         # Group sentences by language pairs
         for pair in self.hparams.source_target_pair:
             sentences[f"{pair[0]}-{pair[1]}"] = {}
-            sentences[f"{pair[0]}-{pair[1]}"]['source'] = torch.cat([source_ids.input_ids[i] for i, sample in enumerate(batch)
+            sentences[f"{pair[0]}-{pair[1]}"]['source'] = torch.stack([source_ids.input_ids[i] for i, sample in enumerate(batch)
                                                            if tuple(sample[2:]) == pair])
-            sentences[f"{pair[0]}-{pair[1]}"]['attention_mask'] = torch.cat([source_ids.attention_mask[i] for i, sample in enumerate(batch)
+            sentences[f"{pair[0]}-{pair[1]}"]['attention_mask'] = torch.stack([source_ids.attention_mask[i] for i, sample in enumerate(batch)
                                                            if tuple(sample[2:]) == pair])
-            sentences[f"{pair[0]}-{pair[1]}"]['target'] = torch.cat([target_ids[i] for i, sample in enumerate(batch)
+            sentences[f"{pair[0]}-{pair[1]}"]['target'] = torch.stack([target_ids[i] for i, sample in enumerate(batch)
                                                            if tuple(sample[2:]) == pair])
 
         return sentences
