@@ -23,8 +23,6 @@ metric = load_metric("sacrebleu")
 
 tokenizer = AutoTokenizer.from_pretrained(teacher_checkpoint)
 
-language_codes = ['en-ro', 'en-fr']
-
 max_input_length = 256
 max_target_length = 256
 
