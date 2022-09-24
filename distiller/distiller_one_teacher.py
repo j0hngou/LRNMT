@@ -1,53 +1,12 @@
-from typing import Tuple
-import torch
 from torch.nn import Module
 from torch import Tensor
 from torch.nn import CrossEntropyLoss, KLDivLoss, CosineEmbeddingLoss
 from transformers import PretrainedConfig
 from transformers.models.t5.modeling_t5 import T5ForConditionalGeneration
-import pytorch_lightning as pl
 from torch.optim import Adam
 
-
-def _create_student_model(teacher: Module,
-                         n: int):
-    """Create a student model from a teacher model.
-
-    Args:
-        teacher: The teacher model.
-        n: The fraction of the teacher model to keep.
-
-    Returns:
-        A student model.
-    """
-    config = teacher.config.to_dict()
-    config['num_layers'] //= n
-    config['num_decoder_layers'] //= n
-    config = PretrainedConfig.from_dict(config)
-    student_model = type(teacher)(config)
-    student = student_model
-    student.n = n
-    _init_student_weights(teacher, student)
-    return student
-
-
-def _init_student_weights(teacher: Module,
-                          student: Module):
-    """Initialize the weights of a student model.
-
-    Args:
-        student: The student model.
-        teacher: The teacher model.
-    """
-    student.shared.weight.data = teacher.shared.weight.data
-    student.encoder.final_layer_norm.weight.data = teacher.encoder.final_layer_norm.weight.data
-    student.decoder.final_layer_norm.weight.data = teacher.decoder.final_layer_norm.weight.data
-    # Encoder
-    for i in range(student.config.num_layers):
-        student.encoder.block[i].load_state_dict(teacher.encoder.block[i * student.n].state_dict())
-    # Decoder
-    for i in range(student.config.num_decoder_layers):
-        student.decoder.block[i].load_state_dict(teacher.decoder.block[i * student.n].state_dict())
+import torch
+import pytorch_lightning as pl
 
 
 class DistillerOneTeacher(pl.LightningModule):
@@ -73,7 +32,7 @@ class DistillerOneTeacher(pl.LightningModule):
         self.save_hyperparameters(ignore=['teacher'])
 
         self.teacher = teacher
-        self.student = _create_student_model(teacher, n)
+        self.student = self._create_student_model()
 
         self.ce_loss = CrossEntropyLoss()
         self.kl_loss = KLDivLoss(reduction='batchmean')
@@ -89,12 +48,14 @@ class DistillerOneTeacher(pl.LightningModule):
                         **kwargs) -> Tensor:
         """
         Get the logits from the student model and the teacher model
-        :param input_ids: The input ids
-        :param attention_mask: The attention mask
-        :param decoder_input_ids: The decoder input ids
-        :param decoder_attention_mask: The decoder attention mask
-        :param kwargs: Additional arguments
-        :return: The student logits and the teacher logits
+        Args:
+            input_ids: The input ids
+            attention_mask: The attention mask
+            decoder_input_ids: The decoder input ids
+            decoder_attention_mask: The decoder attention mask
+            kwargs: Additional arguments
+        Returns:
+            The student logits
         """
         student_logits = self.student(input_ids=input_ids,
                                       attention_mask=attention_mask,
@@ -112,12 +73,14 @@ class DistillerOneTeacher(pl.LightningModule):
                         **kwargs) -> Tensor:
         """
         Get the logits from the student model and the teacher model
-        :param input_ids: The input ids
-        :param attention_mask: The attention mask
-        :param decoder_input_ids: The decoder input ids
-        :param decoder_attention_mask: The decoder attention mask
-        :param kwargs: Additional arguments
-        :return: The student logits and the teacher logits
+        Args:
+            input_ids: The input ids
+            attention_mask: The attention mask
+            decoder_input_ids: The decoder input ids
+            decoder_attention_mask: The decoder attention mask
+            kwargs: Additional arguments
+        Returns:
+            The teacher logits
         """
         self.teacher.eval()
         with torch.no_grad():
@@ -137,12 +100,15 @@ class DistillerOneTeacher(pl.LightningModule):
                 **kwargs) -> Tensor:
         """
         Forward pass through the student model
-        :param input_ids: The input ids
-        :param attention_mask: The attention mask
-        :param decoder_input_ids: The decoder input ids
-        :param decoder_attention_mask: The decoder attention mask
-        :param kwargs: Additional arguments
-        :return: The student logits
+        Args:
+            input_ids: The input ids
+            attention_mask: The attention mask
+            decoder_input_ids: The decoder input ids
+            decoder_attention_mask: The decoder attention mask
+            kwargs: Additional arguments
+        Returns:
+            The student logits
+
         """
         return self.student(input_ids=input_ids,
                             attention_mask=attention_mask,
@@ -189,3 +155,42 @@ class DistillerOneTeacher(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = Adam(self.student.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
         return optimizer
+
+    def _create_student_model(self):
+        """Create a student model from a teacher model.
+
+        Args:
+            teacher: The teacher model.
+            n: The fraction of the teacher model to keep.
+
+        Returns:
+            A student model.
+        """
+        config = self.teacher.config.to_dict()
+        config['num_layers'] //= self.hparams.n
+        config['num_decoder_layers'] //= self.hparams.n
+        config = PretrainedConfig.from_dict(config)
+        student_model = type(self.teacher)(config)
+        student = student_model
+        student.n = self.hparams.n
+        self._init_student_weights(self.teacher, student)
+        return student
+
+    @staticmethod
+    def _init_student_weights(teacher: Module,
+                              student: Module):
+        """Initialize the weights of a student model.
+
+        Args:
+            student: The student model.
+            teacher: The teacher model.
+        """
+        student.shared.weight.data = teacher.shared.weight.data
+        student.encoder.final_layer_norm.weight.data = teacher.encoder.final_layer_norm.weight.data
+        student.decoder.final_layer_norm.weight.data = teacher.decoder.final_layer_norm.weight.data
+        # Encoder
+        for i in range(student.config.num_layers):
+            student.encoder.block[i].load_state_dict(teacher.encoder.block[i * student.n].state_dict())
+        # Decoder
+        for i in range(student.config.num_decoder_layers):
+            student.decoder.block[i].load_state_dict(teacher.decoder.block[i * student.n].state_dict())
