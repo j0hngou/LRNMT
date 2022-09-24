@@ -4,9 +4,9 @@
 #SBATCH --gres=gpu:1
 #SBATCH --job-name=T5-FT_fr
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=6
+#SBATCH --cpus-per-task=3
 #SBATCH --time=48:00:00
-#SBATCH --mem=100000M
+#SBATCH --mem=60000M
 #SBATCH --output=lisa/outputs/dl4nlp_finetune_%A.out
 
 module purge
