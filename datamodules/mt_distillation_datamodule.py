@@ -12,8 +12,8 @@ class MTDistillationDatamodule(pl.LightningDataModule):
     def __init__(
         self,
         tokenizer_name: str = "t5-small",
-        dataset_names: list = ["din0s/ccmatrix_en-ro", "j0hngou/ccmatrix_en-fr"],
-        source_target_pair: list = [("en", "ro"), ("en", "fr")],
+        dataset_names: list = ["din0s/ccmatrix_en-ro", "j0hngou/ccmatrix_en-fr", "j0hngou/ccmatrix_de-en"],
+        source_target_pair: list = [("en", "ro"), ("en", "fr"), ("en", "de")],
         data_dir: str = "./data",
         batch_size: int = 64,
         num_workers: int = 4,
