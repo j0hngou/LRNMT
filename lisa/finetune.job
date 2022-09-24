@@ -15,4 +15,5 @@ module load Anaconda3/2021.05
 
 source activate dl4nlp
 
-python -u finetuning/finetune.py --language_name French --code fr --splits 100000 200000 1000000 --num_epochs 40 --batch_size 64 
+python -u finetuning/finetune.py --language_name French --code fr --splits 100000 200000 1000000 --num_epochs 40 --batch_size 32 
+
