@@ -15,7 +15,7 @@ from pytorch_lightning.loggers import WandbLogger
 
 wandb_logger = WandbLogger(project="distiller", entity="deeplearning2")
 
-teacher_checkpoint = "t5-small"
+teacher_checkpoint = "t5-base"
 
 parser = argparse.ArgumentParser()
 
@@ -35,7 +35,7 @@ dm.setup()
 
 distiller = Distiller(
     teacher=AutoModelForSeq2SeqLM.from_pretrained(teacher_checkpoint),
-    n=1,
+    n=3,
     temperature=1,
     loss_weights=[1/2, 1/2, 0],
 )
