@@ -2,14 +2,12 @@ from typing import Tuple
 import torch
 from torch.nn import Module
 from torch import Tensor
-import torch.nn as nn
 from torch.nn import CrossEntropyLoss, KLDivLoss, CosineEmbeddingLoss
 from transformers import PretrainedConfig
 from transformers.models.t5.modeling_t5 import T5ForConditionalGeneration
 import pytorch_lightning as pl
 from torch.optim import Adam
 
-"Heavily influenced from https://gist.github.com/remi-or/4814577c59f4f38fcc89729ce4ba21e6"
 
 def _create_student_model(teacher: Module,
                          n: int):
@@ -32,6 +30,7 @@ def _create_student_model(teacher: Module,
     _init_student_weights(teacher, student)
     return student
 
+
 def _init_student_weights(teacher: Module,
                           student: Module):
     """Initialize the weights of a student model.
@@ -50,34 +49,14 @@ def _init_student_weights(teacher: Module,
     for i in range(student.config.num_decoder_layers):
         student.decoder.block[i].load_state_dict(teacher.decoder.block[i * student.n].state_dict())
 
-class Teacher(pl.LightningModule):
-    def __init__(self, model: T5ForConditionalGeneration):
-        super().__init__()
-        self.model = model
-        self.model.eval()
 
-    def forward(self, input_ids: Tensor,
-                attention_mask: Tensor,
-                decoder_input_ids: Tensor,
-                decoder_attention_mask: Tensor) -> Tensor:
-        return self.model(input_ids=input_ids,
-                          attention_mask=attention_mask,
-                          decoder_input_ids=decoder_input_ids,
-                          decoder_attention_mask=decoder_attention_mask,
-                          labels=decoder_input_ids)
-
-
-    def training_step(self, batch: Tuple[Tensor, Tensor, Tensor], batch_idx: int) -> Tensor:
-        pass
 class Distiller(pl.LightningModule):
     def __init__(self,
                  teacher: T5ForConditionalGeneration,
                  n: int,
-                 temperature: float = 1.0,
                  loss_weights: list[float] = [1/3, 1/3, 1/3],
                  lr: float = 2e-5,
                  weight_decay=0.01,
-                 model_name: str = 't5-small',
                  **kwargs):
         """
         Args:
@@ -91,21 +70,16 @@ class Distiller(pl.LightningModule):
             kwargs: Additional arguments
         """
         super().__init__()
-        self.save_hyperparameters()
-        self.teacher = Teacher(teacher)
+        self.save_hyperparameters(ignore=['teacher'])
+
+        self.teacher = teacher
         self.student = _create_student_model(teacher, n)
-        self.teacher.freeze()
-        self.n = n
-        self._temperature = temperature
-        self.loss_weights = loss_weights
-        assert len(self.loss_weights) == 3, "loss_weights must be a list of length 3"
-        assert torch.allclose(torch.tensor(1.), torch.tensor(self.loss_weights).sum()), "loss_weights must sum to 1"
-        self.lr = lr
-        self.weight_decay = weight_decay
-        self.model_name = model_name
+
         self.ce_loss = CrossEntropyLoss()
         self.kl_loss = KLDivLoss(reduction='batchmean')
         self.cosine_loss = CosineEmbeddingLoss()
+
+        assert len(loss_weights) == 3, "loss_weights must be a list of length 3"
 
     def get_logits_student(self,
                      input_ids: Tensor,
@@ -174,7 +148,7 @@ class Distiller(pl.LightningModule):
                             attention_mask=attention_mask,
                             decoder_input_ids=decoder_input_ids,
                             decoder_attention_mask=decoder_attention_mask,
-                            **kwargs)[0]
+                            **kwargs).logits
 
     def training_step(self,
                         batch: dict,
@@ -196,38 +170,22 @@ class Distiller(pl.LightningModule):
                                                  decoder_attention_mask)
 
         # Cross entropy loss
-        ce_loss = self.loss_weights[0] * self.ce_loss(student_logits.permute(0, 2, 1), decoder_input_ids)
+        ce_loss = self.hparams.loss_weights[0] * self.ce_loss(student_logits.permute(0, 2, 1), decoder_input_ids)
 
         # KL divergence loss
-        kl_loss = self.loss_weights[1] * self.kl_loss(student_logits.log_softmax(-1), teacher_logits.softmax(dim=-1))
+        kl_loss = self.hparams.loss_weights[1] * self.kl_loss(student_logits.log_softmax(-1), teacher_logits.softmax(dim=-1))
 
         # Cosine loss
         # cosine_loss = self.loss_weights[2] * self.cosine_loss(student_logits, teacher_logits, torch.ones_like(student_logits[:, 0]))
 
         loss = ce_loss + kl_loss# + cosine_loss
+
         self.log("ce_loss", ce_loss)
         self.log("kl_loss", kl_loss)
         self.log("train_loss", loss)
+
         return loss
 
     def configure_optimizers(self):
-        optimizer = Adam(self.student.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+        optimizer = Adam(self.student.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
         return optimizer
-
-    def get_student(self) -> T5ForConditionalGeneration:
-        return self.student
-
-    def get_teacher(self) -> T5ForConditionalGeneration:
-        return self.teacher
-
-    def get_temperature(self) -> float:
-        return self._temperature
-
-    def get_n(self) -> float:
-        return self.n
-
-    def get_loss_weights(self) -> list[float]:
-        return self.loss_weights
-
-    def get_lr(self) -> float:
-        return self.lr

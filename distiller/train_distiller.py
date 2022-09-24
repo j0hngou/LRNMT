@@ -1,30 +1,21 @@
-from Distiller import Distiller
-import transformers
-from transformers import AutoModelForSeq2SeqLM
-from transformers import AutoModelForSeq2SeqLM, DataCollatorForSeq2Seq, Seq2SeqTrainingArguments, Seq2SeqTrainer
 import sys
-sys.path.append('../')
-from datamodules import MTDistillationDatamodule
-from datasets import load_dataset, load_metric
-from datasets.dataset_dict import DatasetDict
-import argparse
-import wandb
-from transformers import AutoTokenizer
 import pytorch_lightning as pl
+sys.path.append('../')
+
+from Distiller import Distiller
+from transformers import AutoModelForSeq2SeqLM
+from datamodules import MTDistillationDatamodule
+from transformers import AutoTokenizer
 from pytorch_lightning.loggers import WandbLogger
 
 wandb_logger = WandbLogger(project="distiller", entity="deeplearning2")
 
 teacher_checkpoint = "t5-base"
 
-parser = argparse.ArgumentParser()
-
-metric = load_metric("sacrebleu")
+# TODO: parser
+# parser = argparse.ArgumentParser()
 
 tokenizer = AutoTokenizer.from_pretrained(teacher_checkpoint)
-
-max_input_length = 256
-max_target_length = 256
 
 batch_size = 2
 
@@ -37,8 +28,6 @@ distiller = Distiller(
     temperature=1,
     loss_weights=[1/2, 1/2, 0],
 )
-
-
 
 trainer = pl.Trainer(
     gpus=1,
