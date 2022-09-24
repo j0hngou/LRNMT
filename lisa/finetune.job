@@ -2,7 +2,7 @@
 
 #SBATCH --partition=gpu_shared_course
 #SBATCH --gres=gpu:1
-#SBATCH --job-name=NMTDistill
+#SBATCH --job-name=T5-FT_fr
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=6
 #SBATCH --time=48:00:00
@@ -15,4 +15,4 @@ module load Anaconda3/2021.05
 
 source activate dl4nlp
 
-python finetuning/finetune.py --language_name French --code fr --splits 100000 200000 1000000 --num_epochs 40 --batch_size 64 
+python -u finetuning/finetune.py --language_name French --code fr --splits 100000 200000 1000000 --num_epochs 40 --batch_size 64 
