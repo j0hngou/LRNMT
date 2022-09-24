@@ -17,6 +17,7 @@ class MTDistillationDatamodule(pl.LightningDataModule):
         data_dir: str = "./data",
         batch_size: int = 64,
         num_workers: int = 4,
+        group_pairs: bool = True,
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -42,11 +43,11 @@ class MTDistillationDatamodule(pl.LightningDataModule):
             self.dataset,
             batch_size=self.hparams.batch_size,
             num_workers=self.hparams.num_workers,
-            collate_fn=self.collate_fn,
+            collate_fn=self.collate_fn_group if self.hparams.group_pairs else self.collate_fn,
             shuffle=True,
         )
 
-    def collate_fn(self, batch: list[dict[str, str]]):
+    def collate_fn_group(self, batch: list[dict[str, str]]):
         sentences = {}
 
         # Tokenize
@@ -64,6 +65,20 @@ class MTDistillationDatamodule(pl.LightningDataModule):
                                                            if tuple(sample[2:]) == pair])
             sentences[f"{pair[0]}-{pair[1]}"]['decoder_attention_mask'] = torch.stack([target.attention_mask[i] for i, sample in enumerate(batch)
                                                            if tuple(sample[2:]) == pair])
+
+        return sentences
+
+    def collate_fn(self, batch: list[dict[str, str]]):
+        sentences = {}
+
+        # Tokenize
+        source = self.tokenizer([sentence[0] for sentence in batch], return_tensors="pt", padding=True)
+        target = self.tokenizer([sentence[1] for sentence in batch], return_tensors="pt", padding=True)
+
+        sentences['source'] = source.input_ids
+        sentences['attention_mask'] = source.attention_mask
+        sentences['target'] = target.input_ids
+        sentences['decoder_attention_mask'] = target.attention_mask
 
         return sentences
 
