@@ -3,7 +3,6 @@ from torch.utils.data import DataLoader
 from transformers import AutoTokenizer
 from typing import Optional
 from torch.utils.data import ConcatDataset
-
 import pytorch_lightning as pl
 import torch
 
@@ -57,11 +56,11 @@ class MTDistillationDatamodule(pl.LightningDataModule):
         # Group sentences by language pairs
         for pair in self.hparams.source_target_pair:
             sentences[f"{pair[0]}-{pair[1]}"] = {}
-            sentences[f"{pair[0]}-{pair[1]}"]['source'] = torch.stack([source.input_ids[i] for i, sample in enumerate(batch)
+            sentences[f"{pair[0]}-{pair[1]}"]['input_ids'] = torch.stack([source.input_ids[i] for i, sample in enumerate(batch)
                                                            if tuple(sample[2:]) == pair])
             sentences[f"{pair[0]}-{pair[1]}"]['attention_mask'] = torch.stack([source.attention_mask[i] for i, sample in enumerate(batch)
                                                            if tuple(sample[2:]) == pair])
-            sentences[f"{pair[0]}-{pair[1]}"]['target'] = torch.stack([target.input_ids[i] for i, sample in enumerate(batch)
+            sentences[f"{pair[0]}-{pair[1]}"]['decoder_input_ids'] = torch.stack([target.input_ids[i] for i, sample in enumerate(batch)
                                                            if tuple(sample[2:]) == pair])
             sentences[f"{pair[0]}-{pair[1]}"]['decoder_attention_mask'] = torch.stack([target.attention_mask[i] for i, sample in enumerate(batch)
                                                            if tuple(sample[2:]) == pair])
@@ -75,9 +74,9 @@ class MTDistillationDatamodule(pl.LightningDataModule):
         source = self.tokenizer([sentence[0] for sentence in batch], return_tensors="pt", padding=True)
         target = self.tokenizer([sentence[1] for sentence in batch], return_tensors="pt", padding=True)
 
-        sentences['source'] = source.input_ids
+        sentences['input_ids'] = source.input_ids
         sentences['attention_mask'] = source.attention_mask
-        sentences['target'] = target.input_ids
+        sentences['decoder_input_ids'] = target.input_ids
         sentences['decoder_attention_mask'] = target.attention_mask
 
         return sentences
