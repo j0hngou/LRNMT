@@ -2,7 +2,7 @@ import sys
 import pytorch_lightning as pl
 sys.path.append('../')
 
-from Distiller import Distiller
+from distiller_one_teacher import DistillerOneTeacher
 from transformers import AutoModelForSeq2SeqLM
 from datamodules import MTDistillationDatamodule
 from transformers import AutoTokenizer
@@ -22,7 +22,7 @@ batch_size = 2
 dm = MTDistillationDatamodule(batch_size=batch_size, group_pairs=False)
 dm.setup()
 
-distiller = Distiller(
+distiller = DistillerOneTeacher(
     teacher=AutoModelForSeq2SeqLM.from_pretrained(teacher_checkpoint),
     n=3,
     temperature=1,

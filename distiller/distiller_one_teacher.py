@@ -50,7 +50,7 @@ def _init_student_weights(teacher: Module,
         student.decoder.block[i].load_state_dict(teacher.decoder.block[i * student.n].state_dict())
 
 
-class Distiller(pl.LightningModule):
+class DistillerOneTeacher(pl.LightningModule):
     def __init__(self,
                  teacher: T5ForConditionalGeneration,
                  n: int,
