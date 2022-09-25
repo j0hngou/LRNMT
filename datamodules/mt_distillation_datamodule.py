@@ -54,7 +54,12 @@ class MTDistillationDatamodule(pl.LightningDataModule):
         target = self.tokenizer([sentence[1] for sentence in batch], return_tensors="pt", padding=True)
 
         # Group sentences by language pairs
+        pairs_in_batch = [sample[2:] for sample in batch]
         for pair in self.hparams.source_target_pair:
+            # Skip pairs with less than two samples in the batch
+            if pairs_in_batch.count(pair) < 2:
+                continue
+            # Get the samples that belong to the current pair
             sentences[f"{pair[0]}-{pair[1]}"] = {}
             sentences[f"{pair[0]}-{pair[1]}"]['input_ids'] = torch.stack([source.input_ids[i] for i, sample in enumerate(batch)
                                                            if tuple(sample[2:]) == pair])
