@@ -126,8 +126,9 @@ class DistillerBilingTeachers(pl.LightningModule):
         ce_loss = 0
         perplexities = []
         for pair in teacher_logits.keys():
-            ce_loss += self.ce_loss(student_logits[pair].permute(0, 2, 1), batch[pair]["decoder_input_ids"])
-            perplexities.append(self._calculate_perplexity(ce_loss))
+            teacher_loss = self.ce_loss(student_logits[pair].permute(0, 2, 1), batch[pair]["decoder_input_ids"])
+            ce_loss += teacher_loss
+            perplexities.append(self._calculate_perplexity(teacher_loss))
         ce_loss /= len(teacher_logits.keys())
         ce_loss *= self.hparams.loss_weights[0]
 
