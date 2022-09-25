@@ -11,7 +11,7 @@ import pytorch_lightning as pl
 class DistillerBilingTeachers(pl.LightningModule):
     def __init__(self,
                  teachers: ModuleDict,
-                 loss_weights: dict = {"ce": 1/3, "kl": 1/3},
+                 loss_weights: dict = {"ce": 1 / 3, "kl": 1 / 3},
                  lr: float = 2e-5,
                  weight_decay=0.01,
                  **kwargs):
@@ -59,11 +59,11 @@ class DistillerBilingTeachers(pl.LightningModule):
 
         logits = {}
         for pair in batch.keys():
-                logits[pair] = self.student(input_ids=batch[pair]["input_ids"],
-                                       attention_mask=batch[pair]["attention_mask"],
-                                       decoder_input_ids=batch[pair]["decoder_input_ids"],
-                                       decoder_attention_mask=batch[pair]["decoder_attention_mask"],
-                                       **kwargs).logits
+            logits[pair] = self.student(input_ids=batch[pair]["input_ids"],
+                                        attention_mask=batch[pair]["attention_mask"],
+                                        decoder_input_ids=batch[pair]["decoder_input_ids"],
+                                        decoder_attention_mask=batch[pair]["decoder_attention_mask"],
+                                        **kwargs).logits
 
         return logits
 
@@ -116,8 +116,8 @@ class DistillerBilingTeachers(pl.LightningModule):
                             **kwargs).logits
 
     def training_step(self,
-                        batch: dict,
-                        batch_idx: int,) -> Tensor:
+                      batch: dict,
+                      batch_idx: int, ) -> Tensor:
 
         student_logits = self.get_logits_student(batch)
         teacher_logits = self.get_logits_teacher(batch)
@@ -127,7 +127,8 @@ class DistillerBilingTeachers(pl.LightningModule):
         perplexities = {}
         for pair in student_logits.keys():
             ce_loss += self.ce_loss(student_logits[pair].permute(0, 2, 1), batch[pair]["decoder_input_ids"])
-            perplexities[pair] = torch.exp(self.ce_loss(teacher_logits[pair].permute(0, 2, 1), batch[pair]["decoder_input_ids"]))
+            perplexities[pair] = torch.exp(
+                self.ce_loss(teacher_logits[pair].permute(0, 2, 1), batch[pair]["decoder_input_ids"]))
 
         ce_loss /= len(student_logits.keys())
         ce_loss *= self.hparams.loss_weights["ce"]
@@ -135,16 +136,16 @@ class DistillerBilingTeachers(pl.LightningModule):
         # KL divergence loss
         kl_loss = 0
         for pair in teacher_logits.keys():
-            perplexities[pair] = perplexities[pair]/sum(perplexities.values())
-            kl_loss += perplexities[pair]*self.kl_loss(torch.log_softmax(student_logits[pair], dim=-1),
-                                                       torch.softmax(teacher_logits[pair], dim=-1))
+            perplexities[pair] = perplexities[pair] / sum(perplexities.values())
+            kl_loss += perplexities[pair] * self.kl_loss(torch.log_softmax(student_logits[pair], dim=-1),
+                                                         torch.softmax(teacher_logits[pair], dim=-1))
         kl_loss /= len(teacher_logits.keys())
         kl_loss *= self.hparams.loss_weights["kl"]
 
         # Cosine loss
         # cosine_loss = self.loss_weights[2] * self.cosine_loss(student_logits, teacher_logits, torch.ones_like(student_logits[:, 0]))
 
-        loss = ce_loss + kl_loss# + cosine_loss
+        loss = ce_loss + kl_loss  # + cosine_loss
 
         self.log("ce_loss", ce_loss)
         self.log("kl_loss", kl_loss)
