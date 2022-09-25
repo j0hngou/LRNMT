@@ -7,7 +7,6 @@ from torch.nn import ModuleDict
 import torch
 import pytorch_lightning as pl
 
-
 class DistillerBilingTeachers(pl.LightningModule):
     def __init__(self,
                  teachers: ModuleDict,
@@ -122,23 +121,21 @@ class DistillerBilingTeachers(pl.LightningModule):
         student_logits = self.get_logits_student(batch)
         teacher_logits = self.get_logits_teacher(batch)
 
-        # Cross entropy loss
+        # Cross entropy loss and unormalized perplexities
         ce_loss = 0
-        perplexities = []
-        for pair in teacher_logits.keys():
-            teacher_loss = self.ce_loss(student_logits[pair].permute(0, 2, 1), batch[pair]["decoder_input_ids"])
-            ce_loss += teacher_loss
-            perplexities.append(self._calculate_perplexity(teacher_loss))
+        perplexities = {}
+        for pair in student_logits.keys():
+            ce_loss += self.ce_loss(student_logits[pair].permute(0, 2, 1), batch[pair]["decoder_input_ids"])
+            perplexities[pair] = torch.exp(self.ce_loss(teacher_logits[pair].permute(0, 2, 1), batch[pair]["decoder_input_ids"]))
+
         ce_loss /= len(teacher_logits.keys())
         ce_loss *= self.hparams.loss_weights[0]
 
-        # Normalize perplexities to get the teacher weights
-        teacher_weights = [perplexity / sum(perplexities) for perplexity in perplexities]
-        teacher_weights = torch.tensor(teacher_weights)
         # KL divergence loss
         kl_loss = 0
         for i, pair in enumerate(teacher_logits.keys()):
-            kl_loss += teacher_weights[i]*self.kl_loss(torch.softmax(student_logits[pair], dim=-1),
+            perplexities[pair] = perplexities[pair]/sum(perplexities.values())
+            kl_loss += perplexities[pair]*self.kl_loss(torch.log_softmax(student_logits[pair], dim=-1),
                                                        torch.softmax(teacher_logits[pair], dim=-1))
         kl_loss /= len(teacher_logits.keys())
         kl_loss *= self.hparams.loss_weights[1]
@@ -157,6 +154,3 @@ class DistillerBilingTeachers(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = Adam(self.student.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
         return optimizer
-
-    def _calculate_perplexity(self, loss):
-        return torch.exp(loss)
