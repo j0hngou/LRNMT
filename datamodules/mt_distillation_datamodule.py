@@ -44,6 +44,7 @@ class MTDistillationDatamodule(pl.LightningDataModule):
             num_workers=self.hparams.num_workers,
             collate_fn=self.collate_fn_group if self.hparams.group_pairs else self.collate_fn,
             shuffle=True,
+            drop_last=True
         )
 
     def collate_fn_group(self, batch: list[dict[str, str]]):
