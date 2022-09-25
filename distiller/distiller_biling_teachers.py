@@ -7,10 +7,11 @@ from torch.nn import ModuleDict
 import torch
 import pytorch_lightning as pl
 
+
 class DistillerBilingTeachers(pl.LightningModule):
     def __init__(self,
                  teachers: ModuleDict,
-                 loss_weights: list[float] = [1/3, 1/3, 1/3],
+                 loss_weights: dict = {"ce": 1/3, "kl": 1/3},
                  lr: float = 2e-5,
                  weight_decay=0.01,
                  **kwargs):
@@ -128,8 +129,8 @@ class DistillerBilingTeachers(pl.LightningModule):
             ce_loss += self.ce_loss(student_logits[pair].permute(0, 2, 1), batch[pair]["decoder_input_ids"])
             perplexities[pair] = torch.exp(self.ce_loss(teacher_logits[pair].permute(0, 2, 1), batch[pair]["decoder_input_ids"]))
 
-        ce_loss /= len(teacher_logits.keys())
-        ce_loss *= self.hparams.loss_weights[0]
+        ce_loss /= len(student_logits.keys())
+        ce_loss *= self.hparams.loss_weights["ce"]
 
         # KL divergence loss
         kl_loss = 0
@@ -138,7 +139,7 @@ class DistillerBilingTeachers(pl.LightningModule):
             kl_loss += perplexities[pair]*self.kl_loss(torch.log_softmax(student_logits[pair], dim=-1),
                                                        torch.softmax(teacher_logits[pair], dim=-1))
         kl_loss /= len(teacher_logits.keys())
-        kl_loss *= self.hparams.loss_weights[1]
+        kl_loss *= self.hparams.loss_weights["kl"]
 
         # Cosine loss
         # cosine_loss = self.loss_weights[2] * self.cosine_loss(student_logits, teacher_logits, torch.ones_like(student_logits[:, 0]))
