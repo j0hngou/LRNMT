@@ -133,7 +133,7 @@ class DistillerBilingTeachers(pl.LightningModule):
 
         # KL divergence loss
         kl_loss = 0
-        for i, pair in enumerate(teacher_logits.keys()):
+        for pair in teacher_logits.keys():
             perplexities[pair] = perplexities[pair]/sum(perplexities.values())
             kl_loss += perplexities[pair]*self.kl_loss(torch.log_softmax(student_logits[pair], dim=-1),
                                                        torch.softmax(teacher_logits[pair], dim=-1))
