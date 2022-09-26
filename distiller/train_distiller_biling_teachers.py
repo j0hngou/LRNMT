@@ -1,5 +1,6 @@
 import sys
 import pytorch_lightning as pl
+import argparse
 sys.path.append('../')
 
 from distiller_biling_teachers import DistillerBilingTeachers
@@ -8,14 +9,16 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from datamodules import MTDistillationDatamodule
 from torch.nn import ModuleDict
-import argparse
+
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--teacher_path', nargs='+', type=str, required=True,
-                    help='The path(or huggingface path) to the teacher model. If there are multiple, they should be separated by a space.')
-parser.add_argument('--teacher_lang', nargs='+', type=str, required=True,
+parser.add_argument('--teacher_path', nargs='+', type=str,
+                    help='The path(or huggingface path) to the teacher model. If there are multiple, they should be separated by a space.',
+                    default=["din0s/t5-small-finetuned-en-to-de", "din0s/t5-small-finetuned-en-to-fr", "din0s/t5-small-finetuned-en-to-ro"])
+parser.add_argument('--teacher_lang', nargs='+', type=str,
                     help='The language of the teacher model. If there are multiple, they should be separated by a space. \
-                        For example, if the teacher_path is ["t5-small_en_ro", "t5-small_en_fr"], the teacher_lang should be ["en-ro", "en-fr"].')
+                        For example, if the teacher_path is ["t5-small_en_ro", "t5-small_en_fr"], the teacher_lang should be ["en-ro", "en-fr"].',
+                    default=["en-de", "en-fr", "en-ro"])
 parser.add_argument('--student_size', type=int, default=1, help='The size of the student model as a fraction of the teacher model.')
 parser.add_argument('--temperature', type=float, default=1, help='The temperature to use for distillation.')
 parser.add_argument('--loss_weights', nargs='+', type=float, default=[1/2, 1/2, 0], help='The weights to use for the loss. \
@@ -38,7 +41,6 @@ early_stop_callback = EarlyStopping(
     verbose=False,
     mode='min'
 )
-
 
 wandb_logger = WandbLogger(project=args.wandb_project, entity="deeplearning2")
 
