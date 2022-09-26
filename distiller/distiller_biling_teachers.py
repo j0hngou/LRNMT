@@ -152,7 +152,7 @@ class DistillerBilingTeachers(pl.LightningModule):
         self.log("kl_loss", kl_loss)
         self.log("train_loss", loss)
 
-        return torch.tensor(loss)
+        return loss
 
     def configure_optimizers(self):
         optimizer = Adam(self.student.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
