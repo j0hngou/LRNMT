@@ -11,7 +11,7 @@ import pytorch_lightning as pl
 class DistillerBilingTeachers(pl.LightningModule):
     def __init__(self,
                  teachers: ModuleDict,
-                 loss_weights: dict = {"ce": 1 / 3, "kl": 1 / 3},
+                 loss_weights: dict = {"ce": 1 / 2, "kl": 1 / 2},
                  lr: float = 2e-5,
                  weight_decay=0.01,
                  **kwargs):
