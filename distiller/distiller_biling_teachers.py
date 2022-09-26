@@ -1,6 +1,6 @@
 from torch import Tensor
 from torch.nn import CrossEntropyLoss, KLDivLoss, CosineEmbeddingLoss
-from transformers.models.t5.modeling_t5 import T5ForConditionalGeneration
+from transformers import AutoModelForSeq2SeqLM
 from torch.optim import Adam
 from torch.nn import ModuleDict
 
@@ -31,8 +31,7 @@ class DistillerBilingTeachers(pl.LightningModule):
         self.save_hyperparameters(ignore=['teachers'])
 
         self.teachers = teachers
-        # TODO: copy the weights from the teacher with the closest language
-        self.student = T5ForConditionalGeneration.from_pretrained("t5-small")
+        self.student = AutoModelForSeq2SeqLM.from_pretrained("din0s/t5-small-finetuned-en-to-ro")
 
         self.ce_loss = CrossEntropyLoss()
         self.kl_loss = KLDivLoss(reduction='batchmean')
