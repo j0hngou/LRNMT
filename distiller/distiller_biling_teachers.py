@@ -12,6 +12,7 @@ class DistillerBilingTeachers(pl.LightningModule):
     def __init__(self,
                  teachers: ModuleDict,
                  loss_weights: dict = {"ce": 1 / 2, "kl": 1 / 2},
+                 temperature=1,
                  lr: float = 2e-5,
                  weight_decay=0.01,
                  **kwargs):
