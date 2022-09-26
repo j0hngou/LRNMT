@@ -128,7 +128,7 @@ class DistillerBilingTeachers(pl.LightningModule):
         for pair in student_logits.keys():
             ce_loss += self.ce_loss(student_logits[pair].permute(0, 2, 1), batch[pair]["decoder_input_ids"])
             perplexities[pair] = torch.exp(
-                self.ce_loss(teacher_logits[pair].permute(0, 2, 1), batch[pair]["decoder_input_ids"]))
+                -self.ce_loss(teacher_logits[pair].permute(0, 2, 1), batch[pair]["decoder_input_ids"]))
 
         ce_loss /= len(student_logits.keys())
         ce_loss *= self.hparams.loss_weights["ce"]
