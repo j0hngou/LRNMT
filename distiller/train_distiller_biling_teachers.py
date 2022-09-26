@@ -48,9 +48,14 @@ batch_size = args.batch_size
 dm = MTDistillationDatamodule(batch_size=batch_size)
 dm.setup()
 
+loss_weights = {'ce': args.loss_weights[0], 'kl': args.loss_weights[1], 'cosine': args.loss_weights[2]}
+
 distiller = DistillerBilingTeachers(
     teachers=teachers,
     student_size=args.student_size,
+    loss_weights=loss_weights,
+    lr=args.lr,
+    weight_decay=args.weight_decay,
 )
 
 trainer = pl.Trainer(
