@@ -74,3 +74,4 @@ trainer = pl.Trainer(
 )
 
 trainer.fit(distiller, dm)
+trainer.test()
