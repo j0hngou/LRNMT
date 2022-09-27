@@ -144,7 +144,7 @@ class DistillerBilingTeachers(pl.LightningModule):
         self.log('val_loss', avg_loss)
         self.log('val_ce_loss', avg_ce_loss)
         self.log('val_kl_loss', avg_kl_loss)
-        return outputs
+        return {'val_loss': avg_loss, 'val_bleu': bleu_score, 'val_ce_loss': avg_ce_loss, 'val_kl_loss': avg_kl_loss}
 
     def test_step(self,
                         batch: dict,
