@@ -162,7 +162,7 @@ class DistillerBilingTeachers(pl.LightningModule):
         return metrics
 
     def test_epoch_end(self, outputs: dict) -> dict:
-        bleu_score = self.sacrebleu.compute()
+        bleu_score = self.sacrebleu.compute()["score"]
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
         avg_ce_loss = torch.stack([x['ce_loss'] for x in outputs]).mean()
         avg_kl_loss = torch.stack([x['kl_loss'] for x in outputs]).mean()
