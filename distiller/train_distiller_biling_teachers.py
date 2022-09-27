@@ -34,6 +34,7 @@ parser.add_argument('--fp16', action='store_true', default=False, help='Whether 
 parser.add_argument('--wandb_project', type=str, default='distiller', help='The wandb project name.')
 parser.add_argument('--val_check_interval', type=float, default=0.05, help='The validation check interval.')
 parser.add_argument('--seed', type=int, default=123, help='The seed to use.')
+parser.add_argument('--random_initialized_student', type=bool, default=False, help='Whether the student is random initialized. If not, the en-ro-t5-small model will be used.')
 
 args = parser.parse_args()
 
@@ -62,6 +63,7 @@ distiller = DistillerBilingTeachers(
     loss_weights=loss_weights,
     lr=args.lr,
     weight_decay=args.weight_decay,
+    random_initialized_student=args.random_initialized_student,
 )
 
 trainer = pl.Trainer(

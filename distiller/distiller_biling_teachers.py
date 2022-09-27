@@ -17,6 +17,7 @@ class DistillerBilingTeachers(pl.LightningModule):
                  temperature=1,
                  lr: float = 2e-5,
                  weight_decay=0.01,
+                 random_initialized_student: bool = False,
                  **kwargs):
         """
         Args:
@@ -33,8 +34,13 @@ class DistillerBilingTeachers(pl.LightningModule):
         self.teachers = teachers
         for teacher in self.teachers.values():
             teacher.config.max_length = 256
-        self.student = AutoModelForSeq2SeqLM.from_pretrained("din0s/t5-small-finetuned-en-to-ro")
-        self.student.tokenizer = AutoTokenizer.from_pretrained("din0s/t5-small-finetuned-en-to-ro")
+
+        if random_initialized_student:
+            raise NotImplementedError("Random initialized student not implemented yet")
+        else:
+            self.student = AutoModelForSeq2SeqLM.from_pretrained("din0s/t5-small-finetuned-en-to-ro")
+
+        self.student.tokenizer = AutoTokenizer.from_pretrained("t5-small")
         self.student.config.max_length = 256
 
         self.ce_loss = CrossEntropyLoss()
