@@ -49,12 +49,12 @@ class MTDistillationDatamodule(pl.LightningDataModule):
         val_list = []
         test_list = []
         for dataset in datasets:
-            train_dataset, test_dataset = torch.utils.data.random_split(dataset, [int(len(dataset) * 0.8),
+            train_dataset, test_dataset = torch.utils.data.random_split(dataset, [int(len(dataset) * 0.9),
                                                                                   len(dataset) - int(
-                                                                                      len(dataset) * 0.8)])
-            test_dataset, val_dataset = torch.utils.data.random_split(test_dataset, [int(len(test_dataset) * 0.5),
+                                                                                      len(dataset) * 0.9)])
+            test_dataset, val_dataset = torch.utils.data.random_split(test_dataset, [int(len(test_dataset) * 0.97),
                                                                                      len(test_dataset) - int(
-                                                                                         len(test_dataset) * 0.5)])
+                                                                                         len(test_dataset) * 0.97)])
 
             train_list.append(train_dataset)
             val_list.append(val_dataset)
