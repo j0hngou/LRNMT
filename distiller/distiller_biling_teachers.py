@@ -186,6 +186,9 @@ class DistillerBilingTeachers(pl.LightningModule):
         kl_loss = 0
         for pair in teacher_logits.keys():
             perplexities[pair] = perplexities[pair] / sum(perplexities.values())
+            pad_token_id = tokenizer.pad_token_id
+            student_logits[pair][batch[pair]["decoder_input_ids"] == pad_token_id] = -float("inf")
+            teacher_logits[pair][batch[pair]["decoder_input_ids"] == pad_token_id] = -float("inf")
             kl_loss += perplexities[pair] * self.kl_loss(torch.log_softmax(student_logits[pair], dim=-1),
                                                          torch.softmax(teacher_logits[pair], dim=-1))
         kl_loss /= len(teacher_logits.keys())
