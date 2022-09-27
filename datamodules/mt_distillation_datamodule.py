@@ -3,7 +3,6 @@ from torch.utils.data import DataLoader
 from transformers import AutoTokenizer
 from typing import Optional, List
 from torch.utils.data import ConcatDataset
-from sklearn.model_selection import train_test_split
 
 import pytorch_lightning as pl
 import torch
@@ -108,14 +107,18 @@ class MTDistillationDatamodule(pl.LightningDataModule):
                 continue
             # Get the samples that belong to the current pair
             sentences[f"{pair[0]}-{pair[1]}"] = {}
-            sentences[f"{pair[0]}-{pair[1]}"]['input_ids'] = torch.stack([source.input_ids[i] for i, sample in enumerate(batch)
-                                                           if tuple(sample[2:]) == pair])
-            sentences[f"{pair[0]}-{pair[1]}"]['attention_mask'] = torch.stack([source.attention_mask[i] for i, sample in enumerate(batch)
-                                                           if tuple(sample[2:]) == pair])
-            sentences[f"{pair[0]}-{pair[1]}"]['decoder_input_ids'] = torch.stack([target.input_ids[i] for i, sample in enumerate(batch)
-                                                           if tuple(sample[2:]) == pair])
-            sentences[f"{pair[0]}-{pair[1]}"]['decoder_attention_mask'] = torch.stack([target.attention_mask[i] for i, sample in enumerate(batch)
-                                                           if tuple(sample[2:]) == pair])
+            sentences[f"{pair[0]}-{pair[1]}"]['input_ids'] = torch.stack([source.input_ids[i]
+                                                                          for i, sample in enumerate(batch)
+                                                                          if tuple(sample[2:]) == pair])
+            sentences[f"{pair[0]}-{pair[1]}"]['attention_mask'] = torch.stack([source.attention_mask[i]
+                                                                               for i, sample in enumerate(batch)
+                                                                               if tuple(sample[2:]) == pair])
+            sentences[f"{pair[0]}-{pair[1]}"]['decoder_input_ids'] = torch.stack([target.input_ids[i]
+                                                                                  for i, sample in enumerate(batch)
+                                                                                  if tuple(sample[2:]) == pair])
+            sentences[f"{pair[0]}-{pair[1]}"]['decoder_attention_mask'] = torch.stack([target.attention_mask[i]
+                                                                                       for i, sample in enumerate(batch)
+                                                                                       if tuple(sample[2:]) == pair])
 
         return sentences
 

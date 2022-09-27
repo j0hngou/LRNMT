@@ -24,8 +24,6 @@ class DistillerBilingTeachers(pl.LightningModule):
             n: The fraction of the teacher model to keep.
             temperature: The temperature to use for distillation.
             loss_weights: The weights to use for the loss.
-                loss_weights format:
-                    [CE, KL, Cosine]
             lr: The learning rate
             kwargs: Additional arguments
         """
