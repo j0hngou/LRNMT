@@ -180,25 +180,31 @@ class DistillerBilingTeachers(pl.LightningModule):
 
         # Cross entropy loss and unormalized perplexities
         ce_loss = 0
+        total_samples = 0
         perplexities = {}
         for pair in student_logits.keys():
-            ce_loss += self.ce_loss(student_logits[pair].permute(0, 2, 1), batch[pair]["decoder_input_ids"])
+            num_samples = batch[pair]["decoder_input_ids"].shape[0]
+            total_samples += num_samples
+            ce_loss += num_samples*self.ce_loss(student_logits[pair].permute(0, 2, 1), batch[pair]["decoder_input_ids"])
             perplexities[pair] = torch.exp(
                 -self.ce_loss(teacher_logits[pair].permute(0, 2, 1), batch[pair]["decoder_input_ids"]))
 
-        ce_loss /= len(student_logits.keys())
+        ce_loss /= total_samples
         ce_loss *= self.hparams.loss_weights["ce"]
 
         # KL divergence loss
         kl_loss = 0
+        total_samples = 0
         for pair in teacher_logits.keys():
+            num_samples = batch[pair]["decoder_input_ids"].shape[0]
+            total_samples += num_samples
             perplexities[pair] = perplexities[pair] / sum(perplexities.values())
             pad_token_id = tokenizer.pad_token_id
             student_logits[pair][batch[pair]["decoder_input_ids"] == pad_token_id] = -float("inf")
             teacher_logits[pair][batch[pair]["decoder_input_ids"] == pad_token_id] = -float("inf")
-            kl_loss += perplexities[pair] * self.kl_loss(torch.log_softmax(student_logits[pair], dim=-1),
+            kl_loss += perplexities[pair] * num_samples* self.kl_loss(torch.log_softmax(student_logits[pair], dim=-1),
                                                          torch.softmax(teacher_logits[pair], dim=-1))
-        kl_loss /= len(teacher_logits.keys())
+        kl_loss /= total_samples
         kl_loss *= self.hparams.loss_weights["kl"]
 
         # Cosine loss
