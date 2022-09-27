@@ -42,11 +42,11 @@ dm = MTDistillationDatamodule(batch_size=args.batch_size)
 dm.setup()
 
 early_stop_callback = EarlyStopping(
-    monitor='val_loss',
+    monitor='val_bleu',
     min_delta=0.00,
-    patience=3,
+    patience=5,
     verbose=False,
-    mode='min'
+    mode='max'
 )
 
 wandb_logger = WandbLogger(project=args.wandb_project, entity="deeplearning2")
