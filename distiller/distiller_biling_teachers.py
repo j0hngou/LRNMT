@@ -140,7 +140,7 @@ class DistillerBilingTeachers(pl.LightningModule):
         return metrics
 
     def validation_epoch_end(self, outputs: list) -> dict:
-        bleu_score = self.sacrebleu.compute()
+        bleu_score = self.sacrebleu.compute()["score"]
         self.log('val_bleu', bleu_score)
         return {'val_bleu': bleu_score}
 
