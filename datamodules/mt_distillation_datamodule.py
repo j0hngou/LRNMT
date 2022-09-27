@@ -1,8 +1,10 @@
 from datasets import load_dataset, Dataset
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer
-from typing import Optional
+from typing import Optional, List
 from torch.utils.data import ConcatDataset
+from sklearn.model_selection import train_test_split
+
 import pytorch_lightning as pl
 import torch
 
@@ -28,22 +30,66 @@ class MTDistillationDatamodule(pl.LightningDataModule):
             load_dataset(dataset, use_auth_token=True)
 
     def setup(self, stage: Optional[str] = None):
-        # TODO: split
-        # Create a list with all the datasets and then concat them
+        # Create a list with all the datasets
         datasets = [MTDistillationDataset(name, pair[0], pair[1])
                     for pair, name in zip(self.hparams.source_target_pair, self.hparams.dataset_names)]
-        self.dataset = ConcatDataset(datasets)
+
+        datasets = self.split_dataset(datasets)
+
+        self.dataset = {}
+        self.dataset['train'] = ConcatDataset(datasets['train'])
+        self.dataset['val'] = ConcatDataset(datasets['val'])
+        self.dataset['test'] = ConcatDataset(datasets['test'])
 
         # Create the tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(self.hparams.tokenizer_name)
 
+    @staticmethod
+    def split_dataset(datasets: List[Dataset]) -> dict[str, List[Dataset]]:
+        train_list = []
+        val_list = []
+        test_list = []
+        for dataset in datasets:
+            train_dataset, test_dataset = torch.utils.data.random_split(dataset, [int(len(dataset) * 0.8),
+                                                                                  len(dataset) - int(
+                                                                                      len(dataset) * 0.8)])
+            test_dataset, val_dataset = torch.utils.data.random_split(test_dataset, [int(len(test_dataset) * 0.5),
+                                                                                     len(test_dataset) - int(
+                                                                                         len(test_dataset) * 0.5)])
+
+            train_list.append(train_dataset)
+            val_list.append(val_dataset)
+            test_list.append(test_dataset)
+
+        return {'train': train_list, 'val': val_list, 'test': test_list}
+
     def train_dataloader(self) -> DataLoader:
         return DataLoader(
-            self.dataset,
+            self.dataset['train'],
             batch_size=self.hparams.batch_size,
             num_workers=self.hparams.num_workers,
             collate_fn=self.collate_fn_group if self.hparams.group_pairs else self.collate_fn,
             shuffle=True,
+            drop_last=True
+        )
+
+    def val_dataloader(self) -> DataLoader:
+        return DataLoader(
+            self.dataset['val'],
+            batch_size=self.hparams.batch_size,
+            num_workers=self.hparams.num_workers,
+            collate_fn=self.collate_fn_group if self.hparams.group_pairs else self.collate_fn,
+            shuffle=False,
+            drop_last=True
+        )
+
+    def test_dataloader(self) -> DataLoader:
+        return DataLoader(
+            self.dataset['test'],
+            batch_size=self.hparams.batch_size,
+            num_workers=self.hparams.num_workers,
+            collate_fn=self.collate_fn_group if self.hparams.group_pairs else self.collate_fn,
+            shuffle=False,
             drop_last=True
         )
 
