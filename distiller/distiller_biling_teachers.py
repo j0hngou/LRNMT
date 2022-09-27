@@ -5,6 +5,7 @@ from torch.optim import Adam
 from torch.nn import ModuleDict
 from datasets import load_metric
 from transformers import AutoTokenizer
+from transformers.models.t5.modeling_t5 import T5Config, T5ForConditionalGeneration
 
 import torch
 import pytorch_lightning as pl
@@ -36,7 +37,7 @@ class DistillerBilingTeachers(pl.LightningModule):
             teacher.config.max_length = 256
 
         if random_initialized_student:
-            raise NotImplementedError("Random initialized student not implemented yet")
+            self.student = T5ForConditionalGeneration(config=T5Config.from_pretrained("t5-small"))
         else:
             self.student = AutoModelForSeq2SeqLM.from_pretrained("din0s/t5-small-finetuned-en-to-ro")
 
