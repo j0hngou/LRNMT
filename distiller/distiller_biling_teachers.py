@@ -189,7 +189,6 @@ class DistillerBilingTeachers(pl.LightningModule):
             kl_loss += perplexities[pair] * self.kl_loss(torch.log_softmax(student_logits[pair], dim=-1),
                                                          torch.softmax(teacher_logits[pair], dim=-1))
 
-            kl_loss += perplexities[pair] * 
         kl_loss /= len(teacher_logits.keys())
         kl_loss *= self.hparams.loss_weights["kl"]
 
