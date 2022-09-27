@@ -185,7 +185,7 @@ class DistillerBilingTeachers(pl.LightningModule):
         for pair in student_logits.keys():
             num_samples = batch[pair]["decoder_input_ids"].shape[0]
             total_samples += num_samples
-            ce_loss += num_samples*self.ce_loss(student_logits[pair].permute(0, 2, 1), batch[pair]["decoder_input_ids"])
+            ce_loss += num_samples * self.ce_loss(student_logits[pair].permute(0, 2, 1), batch[pair]["decoder_input_ids"])
             perplexities[pair] = torch.exp(
                 -self.ce_loss(teacher_logits[pair].permute(0, 2, 1), batch[pair]["decoder_input_ids"]))
 
@@ -202,7 +202,7 @@ class DistillerBilingTeachers(pl.LightningModule):
             pad_token_id = tokenizer.pad_token_id
             student_logits[pair][batch[pair]["decoder_input_ids"] == pad_token_id] = -float("inf")
             teacher_logits[pair][batch[pair]["decoder_input_ids"] == pad_token_id] = -float("inf")
-            kl_loss += perplexities[pair] * num_samples* self.kl_loss(torch.log_softmax(student_logits[pair], dim=-1),
+            kl_loss += perplexities[pair] * num_samples * self.kl_loss(torch.log_softmax(student_logits[pair], dim=-1),
                                                          torch.softmax(teacher_logits[pair], dim=-1))
         kl_loss /= total_samples
         kl_loss *= self.hparams.loss_weights["kl"]
