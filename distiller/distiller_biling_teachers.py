@@ -44,6 +44,7 @@ class DistillerBilingTeachers(pl.LightningModule):
         self.student.tokenizer = AutoTokenizer.from_pretrained("t5-small")
         self.student.config.max_length = 256
 
+        #TODO: ignore pad token in ce.
         self.ce_loss = CrossEntropyLoss()
         self.kl_loss = KLDivLoss(reduction='batchmean')
         self.cosine_loss = CosineEmbeddingLoss()
