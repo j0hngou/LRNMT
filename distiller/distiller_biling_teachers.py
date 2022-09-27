@@ -133,18 +133,16 @@ class DistillerBilingTeachers(pl.LightningModule):
         student_logits, teacher_logits = self.forward(batch)
         metrics = self._compute_metrics(student_logits, teacher_logits, batch, mode="valid")
 
+        self.log('valid_loss', metrics["loss"])
+        self.log('valid_ce_loss', metrics["ce_loss"])
+        self.log('valid_kl_loss', metrics["kl_loss"])
+
         return metrics
 
-    def validation_epoch_end(self, outputs: dict) -> dict:
-        bleu_score = self.sacrebleu.compute()["score"]
-        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
-        avg_ce_loss = torch.stack([x['ce_loss'] for x in outputs]).mean()
-        avg_kl_loss = torch.stack([x['kl_loss'] for x in outputs]).mean()
+    def validation_epoch_end(self, outputs: list) -> dict:
+        bleu_score = self.sacrebleu.compute()
         self.log('val_bleu', bleu_score)
-        self.log('val_loss', avg_loss)
-        self.log('val_ce_loss', avg_ce_loss)
-        self.log('val_kl_loss', avg_kl_loss)
-        return outputs
+        return {'val_bleu': bleu_score}
 
     def test_step(self,
                         batch: dict,
@@ -152,18 +150,17 @@ class DistillerBilingTeachers(pl.LightningModule):
 
         student_logits, teacher_logits = self.forward(batch)
         metrics = self._compute_metrics(student_logits, teacher_logits, batch, mode="test")
+
+        self.log('test_loss', metrics["loss"])
+        self.log('test_ce_loss', metrics["ce_loss"])
+        self.log('test_kl_loss', metrics["kl_loss"])
+
         return metrics
 
-    def test_epoch_end(self, outputs: dict) -> dict:
+    def test_epoch_end(self, outputs: list) -> dict:
         bleu_score = self.sacrebleu.compute()
-        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
-        avg_ce_loss = torch.stack([x['ce_loss'] for x in outputs]).mean()
-        avg_kl_loss = torch.stack([x['kl_loss'] for x in outputs]).mean()
         self.log('test_bleu', bleu_score)
-        self.log('test_loss', avg_loss)
-        self.log('test_ce_loss', avg_ce_loss)
-        self.log('test_kl_loss', avg_kl_loss)
-        return outputs
+        return {'test_bleu': bleu_score}
 
     def _compute_metrics(self, student_logits: dict, teacher_logits: dict, batch: dict, mode: str) -> dict:
         """
@@ -186,8 +183,13 @@ class DistillerBilingTeachers(pl.LightningModule):
         kl_loss = 0
         for pair in teacher_logits.keys():
             perplexities[pair] = perplexities[pair] / sum(perplexities.values())
+            pad_token_id = tokenizer.pad_token_id
+            student_logits[pair][batch[pair]["decoder_input_ids"] == pad_token_id] = -float("inf")
+            teacher_logits[pair][batch[pair]["decoder_input_ids"] == pad_token_id] = -float("inf")
             kl_loss += perplexities[pair] * self.kl_loss(torch.log_softmax(student_logits[pair], dim=-1),
                                                          torch.softmax(teacher_logits[pair], dim=-1))
+
+            kl_loss += perplexities[pair] * 
         kl_loss /= len(teacher_logits.keys())
         kl_loss *= self.hparams.loss_weights["kl"]
 
