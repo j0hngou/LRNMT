@@ -1,6 +1,7 @@
 import sys
 import pytorch_lightning as pl
 import argparse
+
 sys.path.append('../')
 
 from distiller_biling_teachers import DistillerBilingTeachers
@@ -14,14 +15,16 @@ from torch.nn import ModuleDict
 parser = argparse.ArgumentParser()
 parser.add_argument('--teacher_path', nargs='+', type=str,
                     help='The path(or huggingface path) to the teacher model. If there are multiple, they should be separated by a space.',
-                    default=["din0s/t5-small-finetuned-en-to-de", "din0s/t5-small-finetuned-en-to-fr", "din0s/t5-small-finetuned-en-to-ro"])
+                    default=["din0s/t5-small-finetuned-en-to-de", "din0s/t5-small-finetuned-en-to-fr",
+                             "din0s/t5-small-finetuned-en-to-ro"])
 parser.add_argument('--teacher_lang', nargs='+', type=str,
                     help='The language of the teacher model. If there are multiple, they should be separated by a space. \
                         For example, if the teacher_path is ["t5-small_en_ro", "t5-small_en_fr"], the teacher_lang should be ["en-ro", "en-fr"].',
                     default=["en-de", "en-fr", "en-ro"])
-parser.add_argument('--student_size', type=int, default=1, help='The size of the student model as a fraction of the teacher model.')
+parser.add_argument('--student_size', type=int, default=1,
+                    help='The size of the student model as a fraction of the teacher model.')
 parser.add_argument('--temperature', type=float, default=1, help='The temperature to use for distillation.')
-parser.add_argument('--loss_weights', nargs='+', type=float, default=[1/2, 1/2, 0], help='The weights to use for the loss. \
+parser.add_argument('--loss_weights', nargs='+', type=float, default=[1 / 2, 1 / 2, 0], help='The weights to use for the loss. \
                     loss_weights format: [CE, KL, Cosine]')
 parser.add_argument('--lr', type=float, default=2e-5, help='The learning rate.')
 parser.add_argument('--weight_decay', type=float, default=0.01, help='The weight decay.')
@@ -30,9 +33,13 @@ parser.add_argument('--max_epochs', type=int, default=10, help='The maximum numb
 parser.add_argument('--fp16', action='store_true', default=False, help='Whether to use mixed precision training.')
 parser.add_argument('--wandb_project', type=str, default='distiller', help='The wandb project name.')
 parser.add_argument('--val_check_interval', type=float, default=0.05, help='The validation check interval.')
-
+parser.add_argument('--seed', type=int, default=123, help='The seed to use.')
 
 args = parser.parse_args()
+
+pl.seed_everything(args.seed)
+dm = MTDistillationDatamodule(batch_size=args.batch_size)
+dm.setup()
 
 early_stop_callback = EarlyStopping(
     monitor='val_loss',
@@ -44,11 +51,8 @@ early_stop_callback = EarlyStopping(
 
 wandb_logger = WandbLogger(project=args.wandb_project, entity="deeplearning2")
 
-teachers = ModuleDict({lang: AutoModelForSeq2SeqLM.from_pretrained(path) for path, lang in zip(args.teacher_path, args.teacher_lang)})
-batch_size = args.batch_size
-
-dm = MTDistillationDatamodule(batch_size=batch_size)
-dm.setup()
+teachers = ModuleDict(
+    {lang: AutoModelForSeq2SeqLM.from_pretrained(path) for path, lang in zip(args.teacher_path, args.teacher_lang)})
 
 loss_weights = {'ce': args.loss_weights[0], 'kl': args.loss_weights[1], 'cosine': args.loss_weights[2]}
 
