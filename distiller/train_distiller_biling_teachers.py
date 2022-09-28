@@ -37,6 +37,7 @@ parser.add_argument('--seed', type=int, default=123, help='The seed to use.')
 parser.add_argument('--random_initialized_student', action='store_true', help='Whether the student is random initialized. If not, the en-ro-t5-small model will be used.',
 default=False)
 parser.add_argument('--experiment_name', type=str, default='', help='The name of the experiment.')
+parser.add_argument('--disable_dropout', action='store_true', help='Disables dropout in the student model.', default=False)
 
 args = parser.parse_args()
 
@@ -67,6 +68,7 @@ distiller = DistillerBilingTeachers(
     lr=args.lr,
     weight_decay=args.weight_decay,
     random_initialized_student=args.random_initialized_student,
+    disable_dropout=args.disable_dropout,
 )
 
 trainer = pl.Trainer(

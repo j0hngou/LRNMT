@@ -19,6 +19,7 @@ class DistillerBilingTeachers(pl.LightningModule):
                  lr: float = 2e-5,
                  weight_decay=0.01,
                  random_initialized_student: bool = False,
+                 disable_dropout: bool = False,
                  **kwargs):
         """
         Args:
@@ -42,8 +43,9 @@ class DistillerBilingTeachers(pl.LightningModule):
         else:
             self.student = AutoModelForSeq2SeqLM.from_pretrained("din0s/t5-small-finetuned-en-to-ro")
 
-        self.student.hidden_dropout_prob = 0
-        self.student.attention_dropout_prob = 0
+        if disable_dropout:
+            self.student.hidden_dropout_prob = 0
+            self.student.attention_dropout_prob = 0
         self.student.tokenizer = AutoTokenizer.from_pretrained("t5-small")
         self.student.config.max_length = 256
 
