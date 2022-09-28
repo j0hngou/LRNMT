@@ -27,7 +27,7 @@ parser.add_argument('--temperature', type=float, default=1, help='The temperatur
 parser.add_argument('--loss_weights', nargs='+', type=float, default=[1 / 2, 1 / 2, 0], help='The weights to use for the loss. \
                     loss_weights format: [CE, KL, Cosine]')
 parser.add_argument('--lr', type=float, default=2e-5, help='The learning rate.')
-parser.add_argument('--weight_decay', type=float, default=0.01, help='The weight decay.')
+parser.add_argument('--weight_decay', type=float, default=0.0, help='The weight decay.')
 parser.add_argument('--batch_size', type=int, default=8, help='The batch size.')
 parser.add_argument('--max_epochs', type=int, default=10, help='The maximum number of epochs.')
 parser.add_argument('--fp16', action='store_true', default=False, help='Whether to use mixed precision training.')
