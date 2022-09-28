@@ -36,6 +36,7 @@ parser.add_argument('--val_check_interval', type=float, default=0.05, help='The 
 parser.add_argument('--seed', type=int, default=123, help='The seed to use.')
 parser.add_argument('--random_initialized_student', action='store_true', help='Whether the student is random initialized. If not, the en-ro-t5-small model will be used.',
 default=False)
+parser.add_argument('--experiment_name', type=str, default='', help='The name of the experiment.')
 
 args = parser.parse_args()
 
@@ -51,7 +52,8 @@ early_stop_callback = EarlyStopping(
     mode='max'
 )
 
-wandb_logger = WandbLogger(project=args.wandb_project, entity="deeplearning2")
+wandb_logger = WandbLogger(project=args.wandb_project, entity="deeplearning2",
+                           name=f"{args.experiment_name}loss_weights_{args.loss_weights}_lr_{args.lr}_weight_decay_{args.weight_decay}_batch_size_{args.batch_size}_max_epochs_{args.max_epochs}")
 
 teachers = ModuleDict(
     {lang: AutoModelForSeq2SeqLM.from_pretrained(path) for path, lang in zip(args.teacher_path, args.teacher_lang)})
