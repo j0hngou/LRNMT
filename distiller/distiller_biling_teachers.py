@@ -149,11 +149,44 @@ class DistillerBilingTeachers(pl.LightningModule):
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
         avg_ce_loss = torch.stack([x['ce_loss'] for x in outputs]).mean()
         avg_kl_loss = torch.stack([x['kl_loss'] for x in outputs]).mean()
-        self.log('val_bleu', bleu_score)
         self.log('val_loss', avg_loss)
         self.log('val_ce_loss', avg_ce_loss)
         self.log('val_kl_loss', avg_kl_loss)
-        return {'val_loss': avg_loss, 'val_bleu': bleu_score, 'val_ce_loss': avg_ce_loss, 'val_kl_loss': avg_kl_loss}
+        self.log('val_bleu', bleu_score)
+
+        return {"val_loss": avg_loss, "val_bleu": bleu_score}
+
+    def _sample_translations(self,
+                                student_logits: dict,
+                                teacher_logits: dict,
+                                batch: dict) -> dict:
+        """
+        Sample translations from the student and teacher model for each language pair.
+        Args:
+            student_logits: The student logits
+            teacher_logits: The teacher logits
+            batch: The batch to sample translations from
+        Returns:
+            The sampled translations
+        """
+        print("This method is not implemented yet.")
+        sample_translations = {}
+        for pair in batch.keys():
+            sample_translations[pair] = {"student": [], "teacher": []}
+            for i in range(3):
+                student_translation = self.student.tokenizer.generate(
+                    student_logits[pair][i].argmax(dim=-1).tolist(),
+                    skip_special_tokens=True,
+                    clean_up_tokenization_spaces=True)
+                sample_translations[pair]["student"].append(self.student.tokenizer.decode(student_translation))
+
+                teacher_translation = self.teachers[pair].tokenizer.generate(
+                    teacher_logits[pair][i].argmax(dim=-1).tolist(),
+                    skip_special_tokens=True,
+                    clean_up_tokenization_spaces=True)
+                sample_translations[pair]["teacher"].append(self.teachers[pair].tokenizer.decode(teacher_translation))
+
+        return sample_translations
 
     def test_step(self,
                         batch: dict,
