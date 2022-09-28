@@ -42,6 +42,8 @@ class DistillerBilingTeachers(pl.LightningModule):
         else:
             self.student = AutoModelForSeq2SeqLM.from_pretrained("din0s/t5-small-finetuned-en-to-ro")
 
+        self.student.hidden_dropout_prob = 0
+        self.student.attention_dropout_prob = 0
         self.student.tokenizer = AutoTokenizer.from_pretrained("t5-small")
         self.student.config.max_length = 256
 
