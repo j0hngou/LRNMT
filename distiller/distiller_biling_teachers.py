@@ -37,7 +37,8 @@ class DistillerBilingTeachers(pl.LightningModule):
             teacher.config.max_length = 256
 
         if random_initialized_student:
-            self.student = T5ForConditionalGeneration(config=T5Config.from_pretrained("t5-small"))
+            self.student = AutoModelForSeq2SeqLM.from_config(config=T5Config.from_pretrained("t5-small"))
+            self.student._init_weights(self.student)
         else:
             self.student = AutoModelForSeq2SeqLM.from_pretrained("din0s/t5-small-finetuned-en-to-ro")
 
@@ -45,7 +46,7 @@ class DistillerBilingTeachers(pl.LightningModule):
         self.student.config.max_length = 256
 
         #TODO: ignore pad token in ce.
-        self.ce_loss = CrossEntropyLoss()
+        self.ce_loss = CrossEntropyLoss(ignore_index=self.student.config.pad_token_id)
         self.kl_loss = KLDivLoss(reduction='batchmean')
         self.cosine_loss = CosineEmbeddingLoss()
 
@@ -200,9 +201,11 @@ class DistillerBilingTeachers(pl.LightningModule):
             num_samples = batch[pair]["decoder_input_ids"].shape[0]
             total_samples += num_samples
             perplexities[pair] = perplexities[pair] / sum(perplexities.values())
+            # DEBUG PERPLEXITIES
+            perplexities[pair] = 1.0
             pad_token_id = tokenizer.pad_token_id
-            student_logits[pair][batch[pair]["decoder_input_ids"] == pad_token_id] = -float("inf")
-            teacher_logits[pair][batch[pair]["decoder_input_ids"] == pad_token_id] = -float("inf")
+            student_logits[pair][batch[pair]["decoder_input_ids"] == pad_token_id] = -1e9
+            teacher_logits[pair][batch[pair]["decoder_input_ids"] == pad_token_id] = -1e9
             kl_loss += perplexities[pair] * num_samples * self.kl_loss(torch.log_softmax(student_logits[pair], dim=-1),
                                                          torch.softmax(teacher_logits[pair], dim=-1))
         kl_loss /= total_samples
