@@ -138,7 +138,7 @@ class DistillerBilingTeachers(pl.LightningModule):
         teacher_logits = self.get_logits_teacher(batch)
 
         metrics = self._compute_ce_kl(student_logits, teacher_logits, batch)
-        if mode == "eval" or mode == "test":
+        if mode == "val" or mode == "test":
             self._compute_bleu(batch)
 
         return metrics
@@ -159,11 +159,11 @@ class DistillerBilingTeachers(pl.LightningModule):
                         batch: dict,
                         batch_idx: int, ) -> dict:
 
-        metrics = self.forward(batch, mode="eval")
+        metrics = self.forward(batch, mode="val")
         return metrics
 
     def validation_epoch_end(self, outputs: dict) -> dict:
-        outputs = self._test_eval_epoch_end(outputs, mode="eval")
+        outputs = self._test_eval_epoch_end(outputs, mode="val")
         return outputs
 
     def test_step(self,
