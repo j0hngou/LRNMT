@@ -16,7 +16,7 @@ class MTDistillationDatamodule(pl.LightningDataModule):
         source_target_pair: list = [("en", "ro"), ("en", "fr"), ("en", "de")],
         data_dir: str = "./data",
         batch_size: int = 64,
-        num_workers: int = 4,
+        num_workers: int = 6,
         group_pairs: bool = True,
     ):
         super().__init__()
