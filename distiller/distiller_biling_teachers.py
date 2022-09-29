@@ -43,8 +43,7 @@ class DistillerBilingTeachers(pl.LightningModule):
             self.student = AutoModelForSeq2SeqLM.from_pretrained("din0s/t5-small-finetuned-en-to-ro")
 
         if disable_dropout:
-            self.student.hidden_dropout_prob = 0
-            self.student.attention_dropout_prob = 0
+            self._disable_dropout()
         self.student.config.max_length = 256
 
         self.tokenizer = AutoTokenizer.from_pretrained("t5-small")
@@ -56,6 +55,21 @@ class DistillerBilingTeachers(pl.LightningModule):
         self.sacrebleu = load_metric("sacrebleu")
 
         assert len(loss_weights) == 3, "loss_weights must be a list of length 3"
+
+    def _disable_dropout(self):
+        self.student.encoder.dropout.p = 0.0
+        self.student.decoder.dropout.p = 0.0
+        for i in range(self.student.config.num_layers):
+            for j in range(len(self.student.encoder.block[i].layer)):
+                self.student.encoder.block[i].layer[j].dropout.p = 0.0
+                if j == 1:
+                    self.student.encoder.block[i].layer[j].DenseReluDense.dropout.p = 0.0
+
+        for i in range(self.student.config.num_layers):
+            for j in range(len(self.student.decoder.block[i].layer)):
+                self.student.decoder.block[i].layer[j].dropout.p = 0.0
+                if j == 2:
+                    self.student.decoder.block[i].layer[j].DenseReluDense.dropout.p = 0.0
 
     def get_logits_student(self,
                            batch: dict,
