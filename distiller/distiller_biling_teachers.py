@@ -1,11 +1,10 @@
-from typing import Tuple
 from torch.nn import CrossEntropyLoss, KLDivLoss, CosineEmbeddingLoss
 from transformers import AutoModelForSeq2SeqLM
 from torch.optim import Adam
 from torch.nn import ModuleDict
 from datasets import load_metric
 from transformers import AutoTokenizer
-from transformers.models.t5.modeling_t5 import T5Config, T5ForConditionalGeneration
+from transformers.models.t5.modeling_t5 import T5Config
 
 import torch
 import pytorch_lightning as pl
@@ -111,7 +110,8 @@ class DistillerBilingTeachers(pl.LightningModule):
         return logits
 
     def forward(self,
-                batch: dict) -> Tuple[dict, dict]:
+                batch: dict,
+                mode: str) -> dict:
         """
         Forward pass through the student and teacher model to get their logits for each language pair.
         Args:
@@ -123,15 +123,17 @@ class DistillerBilingTeachers(pl.LightningModule):
         student_logits = self.get_logits_student(batch)
         teacher_logits = self.get_logits_teacher(batch)
 
-        return student_logits, teacher_logits
+        metrics = self._compute_ce_kl(student_logits, teacher_logits, batch)
+        if mode == "eval" or mode == "test":
+            self._compute_bleu(batch)
+
+        return metrics
 
     def training_step(self,
                       batch: dict,
                       batch_idx: int, ) -> dict:
 
-        student_logits, teacher_logits = self.forward(batch)
-
-        metrics = self._compute_ce_kl(student_logits, teacher_logits, batch)
+        metrics = self.forward(batch, mode="train")
 
         self.log('train_loss', metrics["loss"])
         self.log('train_ce_loss', metrics["ce_loss"])
@@ -143,43 +145,34 @@ class DistillerBilingTeachers(pl.LightningModule):
                         batch: dict,
                         batch_idx: int, ) -> dict:
 
-        student_logits, teacher_logits = self.forward(batch)
-        metrics = self._compute_ce_kl(student_logits, teacher_logits, batch)
-        self._compute_bleu(batch)
-
+        metrics = self.forward(batch, mode="eval")
         return metrics
 
     def validation_epoch_end(self, outputs: dict) -> dict:
-        bleu_score = self.sacrebleu.compute()["score"]
-        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
-        avg_ce_loss = torch.stack([x['ce_loss'] for x in outputs]).mean()
-        avg_kl_loss = torch.stack([x['kl_loss'] for x in outputs]).mean()
-        self.log('val_loss', avg_loss)
-        self.log('val_ce_loss', avg_ce_loss)
-        self.log('val_kl_loss', avg_kl_loss)
-        self.log('val_bleu', bleu_score)
-
-        return {"val_loss": avg_loss, "val_bleu": bleu_score}
+        outputs = self._test_eval_epoch_end(outputs, mode="eval")
+        return outputs
 
     def test_step(self,
                         batch: dict,
                         batch_idx: int, ) -> dict:
 
-        student_logits, teacher_logits = self.forward(batch)
-        metrics = self._compute_ce_kl(student_logits, teacher_logits, batch)
-        self._compute_bleu(batch)
+        metrics = self.forward(batch, mode="test")
         return metrics
 
     def test_epoch_end(self, outputs: dict) -> dict:
+        outputs = self._test_eval_epoch_end(outputs, "test")
+        return outputs
+
+    def _test_eval_epoch_end(self, outputs: dict, mode: str) -> dict:
         bleu_score = self.sacrebleu.compute()["score"]
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
         avg_ce_loss = torch.stack([x['ce_loss'] for x in outputs]).mean()
         avg_kl_loss = torch.stack([x['kl_loss'] for x in outputs]).mean()
-        self.log('test_bleu', bleu_score)
-        self.log('test_loss', avg_loss)
-        self.log('test_ce_loss', avg_ce_loss)
-        self.log('test_kl_loss', avg_kl_loss)
-        return outputs
+        self.log(f'{mode}_bleu', bleu_score)
+        self.log(f'{mode}_loss', avg_loss)
+        self.log(f'{mode}_ce_loss', avg_ce_loss)
+        self.log(f'{mode}_kl_loss', avg_kl_loss)
+        return {f"{mode}_loss": avg_loss, f"{mode}_bleu": bleu_score}
 
     def _compute_ce_kl(self, student_logits: dict, teacher_logits: dict, batch: dict) -> dict:
         # Cross entropy loss and unormalized perplexities
