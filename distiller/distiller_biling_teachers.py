@@ -201,7 +201,6 @@ class DistillerBilingTeachers(pl.LightningModule):
                 -self.ce_loss(teacher_logits[pair].permute(0, 2, 1), batch[pair]["decoder_input_ids"]))
 
         ce_loss /= total_samples
-        ce_loss *= self.hparams.loss_weights["ce"]
 
         # KL divergence loss
         kl_loss = 0
@@ -218,12 +217,11 @@ class DistillerBilingTeachers(pl.LightningModule):
             kl_loss += perplexities[pair] * num_samples * self.kl_loss(torch.log_softmax(student_logits[pair], dim=-1),
                                                          torch.softmax(teacher_logits[pair], dim=-1))
         kl_loss /= total_samples
-        kl_loss *= self.hparams.loss_weights["kl"]
 
         # Cosine loss
         # cosine_loss = self.loss_weights[2] * self.cosine_loss(student_logits, teacher_logits, torch.ones_like(student_logits[:, 0]))
 
-        loss = ce_loss + kl_loss  # + cosine_loss
+        loss = self.hparams.loss_weights["ce"] * ce_loss + self.hparams.loss_weights["kl"] * kl_loss  # + cosine_loss
 
         return {"loss": loss, "ce_loss": ce_loss, "kl_loss": kl_loss}
 
