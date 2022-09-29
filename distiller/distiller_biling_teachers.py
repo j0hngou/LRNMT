@@ -1,11 +1,10 @@
-from typing import Tuple
 from torch.nn import CrossEntropyLoss, KLDivLoss, CosineEmbeddingLoss
 from transformers import AutoModelForSeq2SeqLM
 from torch.optim import Adam
 from torch.nn import ModuleDict
 from datasets import load_metric
 from transformers import AutoTokenizer
-from transformers.models.t5.modeling_t5 import T5Config, T5ForConditionalGeneration
+from transformers.models.t5.modeling_t5 import T5Config
 
 import torch
 import pytorch_lightning as pl
@@ -19,6 +18,7 @@ class DistillerBilingTeachers(pl.LightningModule):
                  lr: float = 2e-5,
                  weight_decay=0.01,
                  random_initialized_student: bool = False,
+                 disable_dropout: bool = False,
                  **kwargs):
         """
         Args:
@@ -42,10 +42,13 @@ class DistillerBilingTeachers(pl.LightningModule):
         else:
             self.student = AutoModelForSeq2SeqLM.from_pretrained("din0s/t5-small-finetuned-en-to-ro")
 
-        self.student.tokenizer = AutoTokenizer.from_pretrained("t5-small")
+        if disable_dropout:
+            self.student.hidden_dropout_prob = 0
+            self.student.attention_dropout_prob = 0
         self.student.config.max_length = 256
 
-        #TODO: ignore pad token in ce.
+        self.tokenizer = AutoTokenizer.from_pretrained("t5-small")
+
         self.ce_loss = CrossEntropyLoss(ignore_index=self.student.config.pad_token_id)
         self.kl_loss = KLDivLoss(reduction='batchmean')
         self.cosine_loss = CosineEmbeddingLoss()
@@ -107,7 +110,8 @@ class DistillerBilingTeachers(pl.LightningModule):
         return logits
 
     def forward(self,
-                batch: dict) -> Tuple[dict, dict]:
+                batch: dict,
+                mode: str) -> dict:
         """
         Forward pass through the student and teacher model to get their logits for each language pair.
         Args:
@@ -119,15 +123,17 @@ class DistillerBilingTeachers(pl.LightningModule):
         student_logits = self.get_logits_student(batch)
         teacher_logits = self.get_logits_teacher(batch)
 
-        return student_logits, teacher_logits
+        metrics = self._compute_ce_kl(student_logits, teacher_logits, batch)
+        if mode == "eval" or mode == "test":
+            self._compute_bleu(batch)
+
+        return metrics
 
     def training_step(self,
                       batch: dict,
                       batch_idx: int, ) -> dict:
 
-        student_logits, teacher_logits = self.forward(batch)
-
-        metrics = self._compute_metrics(student_logits, teacher_logits, batch, mode="train")
+        metrics = self.forward(batch, mode="train")
 
         self.log('train_loss', metrics["loss"])
         self.log('train_ce_loss', metrics["ce_loss"])
@@ -139,80 +145,36 @@ class DistillerBilingTeachers(pl.LightningModule):
                         batch: dict,
                         batch_idx: int, ) -> dict:
 
-        student_logits, teacher_logits = self.forward(batch)
-        metrics = self._compute_metrics(student_logits, teacher_logits, batch, mode="valid")
-
+        metrics = self.forward(batch, mode="eval")
         return metrics
 
     def validation_epoch_end(self, outputs: dict) -> dict:
-        bleu_score = self.sacrebleu.compute()["score"]
-        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
-        avg_ce_loss = torch.stack([x['ce_loss'] for x in outputs]).mean()
-        avg_kl_loss = torch.stack([x['kl_loss'] for x in outputs]).mean()
-        self.log('val_loss', avg_loss)
-        self.log('val_ce_loss', avg_ce_loss)
-        self.log('val_kl_loss', avg_kl_loss)
-        self.log('val_bleu', bleu_score)
-
-        return {"val_loss": avg_loss, "val_bleu": bleu_score}
-
-    def _sample_translations(self,
-                                student_logits: dict,
-                                teacher_logits: dict,
-                                batch: dict) -> dict:
-        """
-        Sample translations from the student and teacher model for each language pair.
-        Args:
-            student_logits: The student logits
-            teacher_logits: The teacher logits
-            batch: The batch to sample translations from
-        Returns:
-            The sampled translations
-        """
-        print("This method is not implemented yet.")
-        sample_translations = {}
-        for pair in batch.keys():
-            sample_translations[pair] = {"student": [], "teacher": []}
-            for i in range(3):
-                student_translation = self.student.tokenizer.generate(
-                    student_logits[pair][i].argmax(dim=-1).tolist(),
-                    skip_special_tokens=True,
-                    clean_up_tokenization_spaces=True)
-                sample_translations[pair]["student"].append(self.student.tokenizer.decode(student_translation))
-
-                teacher_translation = self.teachers[pair].tokenizer.generate(
-                    teacher_logits[pair][i].argmax(dim=-1).tolist(),
-                    skip_special_tokens=True,
-                    clean_up_tokenization_spaces=True)
-                sample_translations[pair]["teacher"].append(self.teachers[pair].tokenizer.decode(teacher_translation))
-
-        return sample_translations
+        outputs = self._test_eval_epoch_end(outputs, mode="eval")
+        return outputs
 
     def test_step(self,
                         batch: dict,
                         batch_idx: int, ) -> dict:
 
-        student_logits, teacher_logits = self.forward(batch)
-        metrics = self._compute_metrics(student_logits, teacher_logits, batch, mode="test")
+        metrics = self.forward(batch, mode="test")
         return metrics
 
     def test_epoch_end(self, outputs: dict) -> dict:
+        outputs = self._test_eval_epoch_end(outputs, "test")
+        return outputs
+
+    def _test_eval_epoch_end(self, outputs: dict, mode: str) -> dict:
         bleu_score = self.sacrebleu.compute()["score"]
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
         avg_ce_loss = torch.stack([x['ce_loss'] for x in outputs]).mean()
         avg_kl_loss = torch.stack([x['kl_loss'] for x in outputs]).mean()
-        self.log('test_bleu', bleu_score)
-        self.log('test_loss', avg_loss)
-        self.log('test_ce_loss', avg_ce_loss)
-        self.log('test_kl_loss', avg_kl_loss)
-        return outputs
+        self.log(f'{mode}_bleu', bleu_score)
+        self.log(f'{mode}_loss', avg_loss)
+        self.log(f'{mode}_ce_loss', avg_ce_loss)
+        self.log(f'{mode}_kl_loss', avg_kl_loss)
+        return {f"{mode}_loss": avg_loss, f"{mode}_bleu": bleu_score}
 
-    def _compute_metrics(self, student_logits: dict, teacher_logits: dict, batch: dict, mode: str) -> dict:
-        """
-        Currently only calculates SacreBLEU
-        """
-        tokenizer = self.student.tokenizer
-
+    def _compute_ce_kl(self, student_logits: dict, teacher_logits: dict, batch: dict) -> dict:
         # Cross entropy loss and unormalized perplexities
         ce_loss = 0
         total_samples = 0
@@ -236,7 +198,7 @@ class DistillerBilingTeachers(pl.LightningModule):
             perplexities[pair] = perplexities[pair] / sum(perplexities.values())
             # DEBUG PERPLEXITIES
             perplexities[pair] = 1.0
-            pad_token_id = tokenizer.pad_token_id
+            pad_token_id = self.tokenizer.pad_token_id
             student_logits[pair][batch[pair]["decoder_input_ids"] == pad_token_id] = -1e9
             teacher_logits[pair][batch[pair]["decoder_input_ids"] == pad_token_id] = -1e9
             kl_loss += perplexities[pair] * num_samples * self.kl_loss(torch.log_softmax(student_logits[pair], dim=-1),
@@ -249,19 +211,15 @@ class DistillerBilingTeachers(pl.LightningModule):
 
         loss = ce_loss + kl_loss  # + cosine_loss
 
-        if mode == "valid" or mode == "test":
-            for pair in student_logits.keys():
-                _t = batch[pair]['decoder_input_ids']
-                _t[_t == -100] = tokenizer.pad_token_id
-                logits_pair = student_logits[pair].argmax(dim=-1)
-                decoded_preds = tokenizer.batch_decode(logits_pair, skip_special_tokens=True)
-                decoded_preds = [pred.strip() for pred in decoded_preds]
-                decoded_labels = tokenizer.batch_decode(_t, skip_special_tokens=True)
-                decoded_labels = [label.strip() for label in decoded_labels]
-                decoded_labels = [[x] for x in decoded_labels]
-                self.sacrebleu.add_batch(predictions=decoded_preds, references=decoded_labels)
-
         return {"loss": loss, "ce_loss": ce_loss, "kl_loss": kl_loss}
+
+    def _compute_bleu(self, batch: dict):
+            for pair in batch.keys():
+                prediction_ids = self.student.generate(batch[pair]["input_ids"], num_beams=5)
+                prediction = self.tokenizer.batch_decode(prediction_ids, skip_special_tokens=True)
+                target = self.tokenizer.batch_decode(batch[pair]["decoder_input_ids"], skip_special_tokens=True)
+                target = [[t] for t in target]
+                self.sacrebleu.add_batch(predictions=prediction, references=target)
 
     def configure_optimizers(self):
         optimizer = Adam(self.student.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)

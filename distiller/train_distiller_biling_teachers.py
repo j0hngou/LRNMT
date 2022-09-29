@@ -27,7 +27,7 @@ parser.add_argument('--temperature', type=float, default=1, help='The temperatur
 parser.add_argument('--loss_weights', nargs='+', type=float, default=[1 / 2, 1 / 2, 0], help='The weights to use for the loss. \
                     loss_weights format: [CE, KL, Cosine]')
 parser.add_argument('--lr', type=float, default=2e-5, help='The learning rate.')
-parser.add_argument('--weight_decay', type=float, default=0.01, help='The weight decay.')
+parser.add_argument('--weight_decay', type=float, default=0.0, help='The weight decay.')
 parser.add_argument('--batch_size', type=int, default=8, help='The batch size.')
 parser.add_argument('--max_epochs', type=int, default=10, help='The maximum number of epochs.')
 parser.add_argument('--fp16', action='store_true', default=False, help='Whether to use mixed precision training.')
@@ -37,6 +37,7 @@ parser.add_argument('--seed', type=int, default=123, help='The seed to use.')
 parser.add_argument('--random_initialized_student', action='store_true', help='Whether the student is random initialized. If not, the en-ro-t5-small model will be used.',
 default=False)
 parser.add_argument('--experiment_name', type=str, default='', help='The name of the experiment.')
+parser.add_argument('--disable_dropout', action='store_true', help='Disables dropout in the student model.', default=False)
 
 args = parser.parse_args()
 
@@ -67,6 +68,7 @@ distiller = DistillerBilingTeachers(
     lr=args.lr,
     weight_decay=args.weight_decay,
     random_initialized_student=args.random_initialized_student,
+    disable_dropout=args.disable_dropout,
 )
 
 trainer = pl.Trainer(
@@ -80,4 +82,4 @@ trainer = pl.Trainer(
 
 trainer.fit(distiller, dm)
 
-trainer.test()
+trainer.test(distiller, dm)
