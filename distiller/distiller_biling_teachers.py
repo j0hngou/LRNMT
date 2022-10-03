@@ -39,6 +39,7 @@ class DistillerBilingTeachers(pl.LightningModule):
         if random_initialized_student:
             self.student = AutoModelForSeq2SeqLM.from_config(config=T5Config.from_pretrained("t5-small"))
             self.student._init_weights(self.student)
+            self.student.lm_head.reset_parameters()
         else:
             self.student = AutoModelForSeq2SeqLM.from_pretrained("din0s/t5-small-finetuned-en-to-ro")
 
