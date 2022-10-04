@@ -101,27 +101,16 @@ class DistillerBilingTeachers(pl.LightningModule):
         return logits
 
     def get_logits_teacher(self,
-                           batch: dict,
-                           **kwargs) -> dict:
+                           batch: dict, ) -> dict:
         """
         Get the logits from the student model and the teacher model
         Args:
             batch: The batch to get the logits from
-            kwargs: Additional arguments
         Returns:
             The teacher logits
         """
 
         logits = {}
-
-        for pair in batch.keys():
-            for teacher in self.teachers.keys():
-                     logits[teacher] = self.teachers[teacher](input_ids=batch[pair]["input_ids"],
-                                                                attention_mask=batch[pair]["attention_mask"],
-                                                                decoder_input_ids=batch[pair]["decoder_input_ids"],
-                                                                decoder_attention_mask=batch[pair]["decoder_attention_mask"],
-                                                                **kwargs).logits
-
 
         for pair in batch.keys():
             with torch.no_grad():
@@ -130,7 +119,7 @@ class DistillerBilingTeachers(pl.LightningModule):
                                                    attention_mask=batch[pair]["attention_mask"],
                                                    decoder_input_ids=batch[pair]["decoder_input_ids"],
                                                    decoder_attention_mask=batch[pair]["decoder_attention_mask"],
-                                                   **kwargs).logits
+                                                   ).logits
 
         return logits
 
@@ -178,8 +167,8 @@ class DistillerBilingTeachers(pl.LightningModule):
         return outputs
 
     def test_step(self,
-                        batch: dict,
-                        batch_idx: int, ) -> dict:
+                  batch: dict,
+                  batch_idx: int, ) -> dict:
 
         metrics = self.forward(batch, mode="test")
         return metrics
@@ -206,7 +195,8 @@ class DistillerBilingTeachers(pl.LightningModule):
         for pair in student_logits.keys():
             num_samples = batch[pair]["decoder_input_ids"].shape[0]
             total_samples += num_samples
-            ce_loss += num_samples * self.ce_loss(student_logits[pair].permute(0, 2, 1), batch[pair]["decoder_input_ids"])
+            ce_loss += num_samples * self.ce_loss(student_logits[pair].permute(0, 2, 1),
+                                                  batch[pair]["decoder_input_ids"])
 
         ce_loss /= total_samples
 
@@ -220,7 +210,7 @@ class DistillerBilingTeachers(pl.LightningModule):
             student_logits[pair][batch[pair]["decoder_input_ids"] == pad_token_id] = -1e9
             teacher_logits[pair][batch[pair]["decoder_input_ids"] == pad_token_id] = -1e9
             kl_loss += num_samples * self.kl_loss(torch.log_softmax(student_logits[pair], dim=-1),
-                                                         torch.softmax(teacher_logits[pair], dim=-1))
+                                                  torch.softmax(teacher_logits[pair], dim=-1))
         kl_loss /= total_samples
 
         # Cosine loss
@@ -231,12 +221,12 @@ class DistillerBilingTeachers(pl.LightningModule):
         return {"loss": loss, "ce_loss": ce_loss, "kl_loss": kl_loss}
 
     def _compute_bleu(self, batch: dict):
-            for pair in batch.keys():
-                prediction_ids = self.student.generate(batch[pair]["input_ids"], num_beams=5)
-                prediction = self.tokenizer.batch_decode(prediction_ids, skip_special_tokens=True)
-                target = self.tokenizer.batch_decode(batch[pair]["decoder_input_ids"], skip_special_tokens=True)
-                target = [[t] for t in target]
-                self.sacrebleu.add_batch(predictions=prediction, references=target)
+        for pair in batch.keys():
+            prediction_ids = self.student.generate(batch[pair]["input_ids"], num_beams=5)
+            prediction = self.tokenizer.batch_decode(prediction_ids, skip_special_tokens=True)
+            target = self.tokenizer.batch_decode(batch[pair]["decoder_input_ids"], skip_special_tokens=True)
+            target = [[t] for t in target]
+            self.sacrebleu.add_batch(predictions=prediction, references=target)
 
     def configure_optimizers(self):
         optimizer = Adam(self.student.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
