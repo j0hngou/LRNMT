@@ -18,6 +18,7 @@ class DistillerBilingTeachers(pl.LightningModule):
                  weight_decay=0.01,
                  random_initialized_student: bool = False,
                  disable_dropout: bool = False,
+                 precision: int = 32,
                  ):
         super().__init__()
         self.save_hyperparameters(ignore=['teachers'])
@@ -197,8 +198,8 @@ class DistillerBilingTeachers(pl.LightningModule):
             num_samples = batch[pair]["decoder_input_ids"].shape[0]
             total_samples += num_samples
             pad_token_id = self.tokenizer.pad_token_id
-            student_logits[pair][batch[pair]["decoder_input_ids"] == pad_token_id] = -1e9
-            teacher_logits[pair][batch[pair]["decoder_input_ids"] == pad_token_id] = -1e9
+            student_logits[pair][batch[pair]["decoder_input_ids"] == pad_token_id] = -65504 if self.precision == 16 else -1e9
+            teacher_logits[pair][batch[pair]["decoder_input_ids"] == pad_token_id] = -65504 if self.precision == 16 else -1e9
             kl_loss += num_samples * self.kl_loss(torch.log_softmax(student_logits[pair], dim=-1),
                                                   torch.softmax(teacher_logits[pair], dim=-1))
         kl_loss /= total_samples
@@ -231,9 +232,11 @@ class DistillerEnItTeachers(DistillerBilingTeachers):
                  weight_decay=0.01,
                  random_initialized_student: bool = False,
                  disable_dropout: bool = False,
+                 precision: int = 32,
                  ):
         super().__init__(teachers=teachers, loss_weights=loss_weights, lr=lr, weight_decay=weight_decay,
-                         random_initialized_student=random_initialized_student, disable_dropout=disable_dropout)
+                         random_initialized_student=random_initialized_student, disable_dropout=disable_dropout,
+                         precision=precision)
 
         self.pair = "en-it"
 
@@ -270,9 +273,9 @@ class DistillerEnItTeachers(DistillerBilingTeachers):
         # KL divergence loss
         kl_loss = 0
         pad_token_id = self.tokenizer.pad_token_id
-        student_logits[batch[self.pair]["decoder_input_ids"] == pad_token_id] = -1e9
+        student_logits[batch[self.pair]["decoder_input_ids"] == pad_token_id] = -65504 if self.precision == 16 else -1e9
         for pair in teacher_logits.keys():
-            teacher_logits[pair][batch[self.pair]["decoder_input_ids"] == pad_token_id] = -1e9
+            teacher_logits[pair][batch[self.pair]["decoder_input_ids"] == pad_token_id] = -65504 if self.precision == 16 else -1e9
             kl_loss += self.kl_loss(torch.log_softmax(student_logits, dim=-1),
                                                   torch.softmax(teacher_logits[pair], dim=-1))
         kl_loss /= len(teacher_logits.keys())

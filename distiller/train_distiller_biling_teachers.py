@@ -79,6 +79,8 @@ if len(args.dataset_names) == 1:
         weight_decay=args.weight_decay,
         random_initialized_student=args.random_initialized_student,
         disable_dropout=args.disable_dropout,
+        precision=16 if args.fp16 else 32,
+
     )
 else:
     distiller = DistillerBilingTeachers(
@@ -88,6 +90,7 @@ else:
         weight_decay=args.weight_decay,
         random_initialized_student=args.random_initialized_student,
         disable_dropout=args.disable_dropout,
+        precision=16 if args.fp16 else 32,
     )
 
 trainer = pl.Trainer(
