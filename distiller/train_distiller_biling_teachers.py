@@ -21,6 +21,9 @@ parser.add_argument('--teacher_lang', nargs='+', type=str,
                     help='The language of the teacher model. If there are multiple, they should be separated by a space. \
                         For example, if the teacher_path is ["t5-small_en_ro", "t5-small_en_fr"], the teacher_lang should be ["en-ro", "en-fr"].',
                     default=["en-de", "en-fr", "en-ro"])
+parser.add_argument('--dataset_names', nargs='+', type=str,
+                    help='The path(or huggingface path) to the datasets. If there are multiple, they should be separated by a space.',
+                    default=["din0s/ccmatrix_en-ro", "j0hngou/ccmatrix_en-fr", "j0hngou/ccmatrix_de-en"])
 parser.add_argument('--student_size', type=int, default=1,
                     help='The size of the student model as a fraction of the teacher model.')
 parser.add_argument('--temperature', type=float, default=1, help='The temperature to use for distillation.')
@@ -42,7 +45,15 @@ parser.add_argument('--disable_dropout', action='store_true', help='Disables dro
 args = parser.parse_args()
 
 pl.seed_everything(args.seed)
-dm = MTDistillationDatamodule(batch_size=args.batch_size)
+
+if len(args.dataset_names) == 1:
+    dm = MTDistillationDatamodule(batch_size=args.batch_size,
+                                  dataset_names=args.dataset_names,
+                                  source_target_pair=["en", "it"],
+                                  )
+else:
+    dm = MTDistillationDatamodule(batch_size=args.batch_size,
+                                  )
 dm.setup()
 
 early_stop_callback = EarlyStopping(
@@ -69,6 +80,7 @@ distiller = DistillerBilingTeachers(
     weight_decay=args.weight_decay,
     random_initialized_student=args.random_initialized_student,
     disable_dropout=args.disable_dropout,
+    monoling_distillation=True if len(args.dataset_names) == 1 else False,
 )
 
 trainer = pl.Trainer(
