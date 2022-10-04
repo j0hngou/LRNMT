@@ -4,7 +4,7 @@ import argparse
 
 sys.path.append('../')
 
-from distiller_biling_teachers import DistillerBilingTeachers
+from distiller_biling_teachers import DistillerBilingTeachers, DistillerEnItTeachers
 from transformers import AutoModelForSeq2SeqLM
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
@@ -24,9 +24,6 @@ parser.add_argument('--teacher_lang', nargs='+', type=str,
 parser.add_argument('--dataset_names', nargs='+', type=str,
                     help='The path(or huggingface path) to the datasets. If there are multiple, they should be separated by a space.',
                     default=["din0s/ccmatrix_en-ro", "j0hngou/ccmatrix_en-fr", "j0hngou/ccmatrix_de-en"])
-parser.add_argument('--student_size', type=int, default=1,
-                    help='The size of the student model as a fraction of the teacher model.')
-parser.add_argument('--temperature', type=float, default=1, help='The temperature to use for distillation.')
 parser.add_argument('--loss_weights', nargs='+', type=float, default=[1 / 2, 1 / 2, 0], help='The weights to use for the loss. \
                     loss_weights format: [CE, KL, Cosine]')
 parser.add_argument('--lr', type=float, default=2e-5, help='The learning rate.')
@@ -49,8 +46,10 @@ pl.seed_everything(args.seed)
 if len(args.dataset_names) == 1:
     dm = MTDistillationDatamodule(batch_size=args.batch_size,
                                   dataset_names=args.dataset_names,
-                                  source_target_pair=["en", "it"],
+                                  source_target_pair=[("en", "it")],
                                   )
+    args.teacher_path = ['din0s/t5-small-de-finetuned-en-to-it', 'din0s/t5-small-fr-finetuned-en-to-it',
+                         'din0s/t5-small-ro-finetuned-en-to-it']
 else:
     dm = MTDistillationDatamodule(batch_size=args.batch_size,
                                   )
@@ -72,17 +71,24 @@ teachers = ModuleDict(
 
 loss_weights = {'ce': args.loss_weights[0], 'kl': args.loss_weights[1], 'cosine': args.loss_weights[2]}
 
-distiller = DistillerBilingTeachers(
-    teachers=teachers,
-    student_size=args.student_size,
-    loss_weights=loss_weights,
-    lr=args.lr,
-    weight_decay=args.weight_decay,
-    random_initialized_student=args.random_initialized_student,
-    disable_dropout=args.disable_dropout,
-    monoling_distillation=True if len(args.dataset_names) == 1 else False,
-    precision=16 if args.fp16 else 32,
-)
+if len(args.dataset_names) == 1:
+    distiller = DistillerEnItTeachers(
+        teachers=teachers,
+        loss_weights=loss_weights,
+        lr=args.lr,
+        weight_decay=args.weight_decay,
+        random_initialized_student=args.random_initialized_student,
+        disable_dropout=args.disable_dropout,
+    )
+else:
+    distiller = DistillerBilingTeachers(
+        teachers=teachers,
+        loss_weights=loss_weights,
+        lr=args.lr,
+        weight_decay=args.weight_decay,
+        random_initialized_student=args.random_initialized_student,
+        disable_dropout=args.disable_dropout,
+    )
 
 trainer = pl.Trainer(
     gpus=1,

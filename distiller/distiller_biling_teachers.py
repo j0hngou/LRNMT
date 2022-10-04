@@ -14,22 +14,11 @@ class DistillerBilingTeachers(pl.LightningModule):
     def __init__(self,
                  teachers: ModuleDict,
                  loss_weights: dict = {"ce": 1 / 2, "kl": 1 / 2},
-                 temperature=1,
                  lr: float = 2e-5,
                  weight_decay=0.01,
                  random_initialized_student: bool = False,
                  disable_dropout: bool = False,
-                 precision: int = 32,
-                 **kwargs):
-        """
-        Args:
-            teacher: The teacher model.
-            n: The fraction of the teacher model to keep.
-            temperature: The temperature to use for distillation.
-            loss_weights: The weights to use for the loss.
-            lr: The learning rate
-            kwargs: Additional arguments
-        """
+                 ):
         super().__init__()
         self.save_hyperparameters(ignore=['teachers'])
 
@@ -75,7 +64,7 @@ class DistillerBilingTeachers(pl.LightningModule):
 
     def get_logits_student(self,
                            batch: dict,
-                           **kwargs) -> dict:
+                           ) -> dict:
         """
         Get the logits from the student model and the teacher model
         Args:
@@ -97,7 +86,7 @@ class DistillerBilingTeachers(pl.LightningModule):
                                         attention_mask=batch[pair]["attention_mask"],
                                         decoder_input_ids=batch[pair]["decoder_input_ids"],
                                         decoder_attention_mask=batch[pair]["decoder_attention_mask"],
-                                        **kwargs).logits
+                                        ).logits
 
         return logits
 
@@ -208,8 +197,8 @@ class DistillerBilingTeachers(pl.LightningModule):
             num_samples = batch[pair]["decoder_input_ids"].shape[0]
             total_samples += num_samples
             pad_token_id = self.tokenizer.pad_token_id
-            student_logits[pair][batch[pair]["decoder_input_ids"] == pad_token_id] = -65504 if self.precision == 16 else -1e9
-            teacher_logits[pair][batch[pair]["decoder_input_ids"] == pad_token_id] = -65504 if self.precision == 16 else -1e9
+            student_logits[pair][batch[pair]["decoder_input_ids"] == pad_token_id] = -1e9
+            teacher_logits[pair][batch[pair]["decoder_input_ids"] == pad_token_id] = -1e9
             kl_loss += num_samples * self.kl_loss(torch.log_softmax(student_logits[pair], dim=-1),
                                                   torch.softmax(teacher_logits[pair], dim=-1))
         kl_loss /= total_samples
@@ -232,3 +221,62 @@ class DistillerBilingTeachers(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = Adam(self.student.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
         return optimizer
+
+
+class DistillerEnItTeachers(DistillerBilingTeachers):
+    def __init__(self,
+                 teachers: ModuleDict,
+                 loss_weights: dict = {"ce": 1 / 2, "kl": 1 / 2},
+                 lr: float = 2e-5,
+                 weight_decay=0.01,
+                 random_initialized_student: bool = False,
+                 disable_dropout: bool = False,
+                 ):
+        super().__init__(teachers=teachers, loss_weights=loss_weights, lr=lr, weight_decay=weight_decay,
+                         random_initialized_student=random_initialized_student, disable_dropout=disable_dropout)
+
+        self.pair = "en-it"
+
+    def get_logits_student(self,
+                           batch: dict,
+                           ):
+        logits = self.student(input_ids=batch[self.pair]["input_ids"],
+                              attention_mask=batch[self.pair]["attention_mask"],
+                              decoder_input_ids=batch[self.pair]["decoder_input_ids"],
+                              decoder_attention_mask=batch[self.pair]["decoder_attention_mask"],
+                              ).logits
+
+        return logits
+
+    def get_logits_teacher(self,
+                           batch: dict, ) -> dict:
+        logits = {}
+
+        for pair in self.teachers.keys():
+            with torch.no_grad():
+                self.teachers[pair].eval()
+                logits[pair] = self.teachers[pair](input_ids=batch[self.pair]["input_ids"],
+                                                   attention_mask=batch[self.pair]["attention_mask"],
+                                                   decoder_input_ids=batch[self.pair]["decoder_input_ids"],
+                                                   decoder_attention_mask=batch[self.pair]["decoder_attention_mask"],
+                                                   ).logits
+
+        return logits
+
+    def _compute_ce_kl(self, student_logits: torch.Tensor, teacher_logits: dict, batch: dict) -> dict:
+        # Cross entropy loss
+        ce_loss = self.ce_loss(student_logits.permute(0, 2, 1), batch[self.pair]["decoder_input_ids"])
+
+        # KL divergence loss
+        kl_loss = 0
+        pad_token_id = self.tokenizer.pad_token_id
+        student_logits[batch[self.pair]["decoder_input_ids"] == pad_token_id] = -1e9
+        for pair in teacher_logits.keys():
+            teacher_logits[pair][batch[self.pair]["decoder_input_ids"] == pad_token_id] = -1e9
+            kl_loss += self.kl_loss(torch.log_softmax(student_logits, dim=-1),
+                                                  torch.softmax(teacher_logits[pair], dim=-1))
+        kl_loss /= len(teacher_logits.keys())
+
+        loss = self.hparams.loss_weights["ce"] * ce_loss + self.hparams.loss_weights["kl"] * kl_loss  # + cosine_loss
+
+        return {"loss": loss, "ce_loss": ce_loss, "kl_loss": kl_loss}
