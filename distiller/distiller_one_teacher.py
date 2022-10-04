@@ -4,6 +4,9 @@ from torch.nn import CrossEntropyLoss, KLDivLoss, CosineEmbeddingLoss
 from transformers import PretrainedConfig
 from transformers.models.t5.modeling_t5 import T5ForConditionalGeneration
 from torch.optim import Adam
+from datasets import load_metric
+from transformers import AutoTokenizer
+from transformers.models.t5.modeling_t5 import T5Config
 
 import torch
 import pytorch_lightning as pl
@@ -13,9 +16,10 @@ class DistillerOneTeacher(pl.LightningModule):
     def __init__(self,
                  teacher: T5ForConditionalGeneration,
                  n: int,
-                 loss_weights: list[float] = [1/3, 1/3, 1/3],
+                 loss_weights: list[float] = [1/2, 1/2, 0],
                  lr: float = 2e-5,
                  weight_decay=0.01,
+                 disable_dropout=True,
                  **kwargs):
         """
         Args:
@@ -32,13 +36,38 @@ class DistillerOneTeacher(pl.LightningModule):
         self.save_hyperparameters(ignore=['teacher'])
 
         self.teacher = teacher
+        self.teacher.config.max_length = 256
         self.student = self._create_student_model()
+        self.student.config.max_length = 256
+        self.loss_weights = loss_weights
 
-        self.ce_loss = CrossEntropyLoss()
+        self.ce_loss = CrossEntropyLoss(ignore_index=self.student.config.pad_token_id)
         self.kl_loss = KLDivLoss(reduction='batchmean')
         self.cosine_loss = CosineEmbeddingLoss()
+        if disable_dropout:
+            self._disable_dropout()
 
         assert len(loss_weights) == 3, "loss_weights must be a list of length 3"
+        self.sacrebleu = load_metric("sacrebleu")
+        self.tokenizer = AutoTokenizer.from_pretrained("t5-small")
+
+
+
+    def _disable_dropout(self):
+        self.student.encoder.dropout.p = 0.0
+        self.student.decoder.dropout.p = 0.0
+        for i in range(self.student.config.num_layers):
+            for j in range(len(self.student.encoder.block[i].layer)):
+                self.student.encoder.block[i].layer[j].dropout.p = 0.0
+                if j == 1:
+                    self.student.encoder.block[i].layer[j].DenseReluDense.dropout.p = 0.0
+
+        for i in range(self.student.config.num_layers):
+            for j in range(len(self.student.decoder.block[i].layer)):
+                self.student.decoder.block[i].layer[j].dropout.p = 0.0
+                if j == 2:
+                    self.student.decoder.block[i].layer[j].DenseReluDense.dropout.p = 0.0
+
 
     def get_logits_student(self,
                      input_ids: Tensor,
@@ -97,6 +126,7 @@ class DistillerOneTeacher(pl.LightningModule):
                 attention_mask: Tensor,
                 decoder_input_ids: Tensor,
                 decoder_attention_mask: Tensor,
+                mode: str = 'train',
                 **kwargs) -> Tensor:
         """
         Forward pass through the student model
@@ -110,11 +140,42 @@ class DistillerOneTeacher(pl.LightningModule):
             The student logits
 
         """
-        return self.student(input_ids=input_ids,
-                            attention_mask=attention_mask,
-                            decoder_input_ids=decoder_input_ids,
-                            decoder_attention_mask=decoder_attention_mask,
-                            **kwargs).logits
+        student_logits = self.get_logits_student(input_ids=input_ids,
+                                                    attention_mask=attention_mask,
+                                                    decoder_input_ids=decoder_input_ids,
+                                                    decoder_attention_mask=decoder_attention_mask,
+                                                    **kwargs)
+    
+        teacher_logits = self.get_logits_teacher(input_ids=input_ids,
+                                                    attention_mask=attention_mask,
+                                                    decoder_input_ids=decoder_input_ids,
+                                                    decoder_attention_mask=decoder_attention_mask,
+                                                    **kwargs)
+
+        metrics = self._compute_ce_kl(student_logits, teacher_logits, 
+                                      decoder_input_ids, decoder_attention_mask)
+
+        if mode == 'val' or mode == 'test':
+            self._compute_bleu(input_ids, decoder_input_ids)
+        return metrics
+
+    def _compute_ce_kl(self, student_logits, teacher_logits, decoder_input_ids, decoder_attention_mask):
+        ce_loss = self.ce_loss(student_logits.permute(0, 2, 1), decoder_input_ids)
+        student_logits[decoder_attention_mask == 0] = -1e9
+        teacher_logits[decoder_attention_mask == 0] = -1e9
+        kl_loss = self.kl_loss(torch.nn.functional.log_softmax(student_logits, dim=-1),
+                               torch.nn.functional.softmax(teacher_logits, dim=-1))
+        loss = self.loss_weights[0] * ce_loss + self.loss_weights[1] * kl_loss
+        return {'loss': loss, 'ce_loss': ce_loss, 'kl_loss': kl_loss}
+
+    def _compute_bleu(self, input_ids, decoder_input_ids):
+        prediction_ids = self.student.generate(input_ids=input_ids,
+                                               num_beams=5)
+        prediction = self.tokenizer.batch_decode(prediction_ids, skip_special_tokens=True)
+        target = self.tokenizer.batch_decode(decoder_input_ids, skip_special_tokens=True)
+        target = [[t] for t in target]
+        self.sacrebleu.add_batch(predictions=prediction, references=target)
+
 
     def training_step(self,
                         batch: dict,
@@ -124,33 +185,57 @@ class DistillerOneTeacher(pl.LightningModule):
         attention_mask = batch["attention_mask"]
         decoder_input_ids = batch["decoder_input_ids"]
         decoder_attention_mask = batch["decoder_attention_mask"]
-        # labels = batch["labels"]
+        metrics = self.forward(input_ids, attention_mask, decoder_input_ids, decoder_attention_mask)
 
-        student_logits = self.get_logits_student(input_ids,
-                                                 attention_mask,
-                                                 decoder_input_ids,
-                                                 decoder_attention_mask)
-        teacher_logits = self.get_logits_teacher(input_ids,
-                                                 attention_mask,
-                                                 decoder_input_ids,
-                                                 decoder_attention_mask)
+        self.log('train_loss', metrics['loss'], on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log('train_ce_loss', metrics['ce_loss'], on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log('train_kl_loss', metrics['kl_loss'], on_step=True, on_epoch=True, prog_bar=True, logger=True)
 
-        # Cross entropy loss
-        ce_loss = self.hparams.loss_weights[0] * self.ce_loss(student_logits.permute(0, 2, 1), decoder_input_ids)
+        return metrics
 
-        # KL divergence loss
-        kl_loss = self.hparams.loss_weights[1] * self.kl_loss(student_logits.log_softmax(-1), teacher_logits.softmax(dim=-1))
+    def validation_step(self,
+                        batch: dict,
+                        batch_idx: int,) -> Tensor:
+        input_ids = batch["input_ids"]
+        attention_mask = batch["attention_mask"]
+        decoder_input_ids = batch["decoder_input_ids"]
+        decoder_attention_mask = batch["decoder_attention_mask"]
+        metrics = self.forward(input_ids, attention_mask, decoder_input_ids, decoder_attention_mask, mode='val')
+        
+        return metrics
 
-        # Cosine loss
-        # cosine_loss = self.loss_weights[2] * self.cosine_loss(student_logits, teacher_logits, torch.ones_like(student_logits[:, 0]))
+    def validation_epoch_end(self, outputs: dict):
+        outputs = self._test_eval_epoch_end(outputs, mode='val')
+        return outputs
 
-        loss = ce_loss + kl_loss# + cosine_loss
+    def test_step(self,
+                        batch: dict,
+                        batch_idx: int,) -> Tensor:
 
-        self.log("ce_loss", ce_loss)
-        self.log("kl_loss", kl_loss)
-        self.log("train_loss", loss)
+        input_ids = batch["input_ids"]
+        attention_mask = batch["attention_mask"]
+        decoder_input_ids = batch["decoder_input_ids"]
+        decoder_attention_mask = batch["decoder_attention_mask"]
+        metrics = self.forward(input_ids, attention_mask, decoder_input_ids, decoder_attention_mask, mode='test')
 
-        return loss
+        return metrics
+
+    def test_epoch_end(self, outputs: dict):
+        outputs = self._test_eval_epoch_end(outputs, mode='test')
+        return outputs
+
+
+    def _test_eval_epoch_end(self, outputs: dict, mode: str) -> dict:
+        bleu_score = self.sacrebleu.compute()["score"]
+        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
+        avg_ce_loss = torch.stack([x['ce_loss'] for x in outputs]).mean()
+        avg_kl_loss = torch.stack([x['kl_loss'] for x in outputs]).mean()
+        self.log(f'{mode}_bleu', bleu_score)
+        self.log(f'{mode}_loss', avg_loss)
+        self.log(f'{mode}_ce_loss', avg_ce_loss)
+        self.log(f'{mode}_kl_loss', avg_kl_loss)
+        return {f"{mode}_loss": avg_loss, f"{mode}_bleu": bleu_score}
+
 
     def configure_optimizers(self):
         optimizer = Adam(self.student.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)

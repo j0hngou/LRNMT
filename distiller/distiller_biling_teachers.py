@@ -113,6 +113,16 @@ class DistillerBilingTeachers(pl.LightningModule):
         """
 
         logits = {}
+
+        for pair in batch.keys():
+            for teacher in self.teachers.keys():
+                     logits[teacher] = self.teachers[teacher](input_ids=batch[pair]["input_ids"],
+                                                                attention_mask=batch[pair]["attention_mask"],
+                                                                decoder_input_ids=batch[pair]["decoder_input_ids"],
+                                                                decoder_attention_mask=batch[pair]["decoder_attention_mask"],
+                                                                **kwargs).logits
+
+
         for pair in batch.keys():
             with torch.no_grad():
                 self.teachers[pair].eval()

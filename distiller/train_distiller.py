@@ -24,7 +24,7 @@ dm.setup()
 
 distiller = DistillerOneTeacher(
     teacher=AutoModelForSeq2SeqLM.from_pretrained(teacher_checkpoint),
-    n=3,
+    n=6,
     temperature=1,
     loss_weights=[1/2, 1/2, 0],
 )
