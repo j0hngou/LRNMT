@@ -50,6 +50,7 @@ distiller = DistillerOneTeacher(
     loss_weights=args.loss_weights,
     weight_decay=args.weight_decay,
     disable_dropout=args.disable_dropout,
+    precision=16 if args.fp16 else 32,
 )
 
 trainer = pl.Trainer(

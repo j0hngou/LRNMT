@@ -81,6 +81,7 @@ distiller = DistillerBilingTeachers(
     random_initialized_student=args.random_initialized_student,
     disable_dropout=args.disable_dropout,
     monoling_distillation=True if len(args.dataset_names) == 1 else False,
+    precision=16 if args.fp16 else 32,
 )
 
 trainer = pl.Trainer(

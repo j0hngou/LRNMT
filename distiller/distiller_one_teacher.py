@@ -20,6 +20,7 @@ class DistillerOneTeacher(pl.LightningModule):
                  lr: float = 2e-5,
                  weight_decay=0.01,
                  disable_dropout=True,
+                 precision: int = 32,
                  **kwargs):
         """
         Args:
