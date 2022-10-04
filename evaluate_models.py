@@ -2,15 +2,18 @@ from datasets import load_dataset, load_metric
 import evaluate
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, Seq2SeqTrainer, DataCollatorForSeq2Seq, Seq2SeqTrainingArguments
 import numpy as np
+import json
 
 it_dataset = "j0hngou/ccmatrix_en-it"
-model_data_dict = {"French" : ("din0s/t5-small-finetuned-en-to-fr", "j0hngou/ccmatrix_en-fr"), 
-                   "Romanian" : ("din0s/t5-small-finetuned-en-to-ro", "din0s/ccmatrix_en-ro"), 
-                   "German" : ("din0s/t5-small-finetuned-en-to-de", "j0hngou/ccmatrix_de-en"),
-                   "Italian" : ("din0s/t5-small-fr-finetuned-en-to-it", it_dataset), 
-                   "Italian" : ("din0s/t5-small-ro-finetuned-en-to-it", it_dataset),
-                   "Italian" : ("din0s/t5-small-de-finetuned-en-to-it", it_dataset),
-                   "Italian" : ("din0s/t5-small-finetuned-en-to-it", it_dataset)}
+model_data_dict = {
+    "din0s/t5-small-finetuned-en-to-fr" : ("French", "j0hngou/ccmatrix_en-fr"), 
+    "din0s/t5-small-finetuned-en-to-ro" : ("Romanian", "din0s/ccmatrix_en-ro"), 
+    "din0s/t5-small-finetuned-en-to-de" : ("German", "j0hngou/ccmatrix_de-en"),
+    "din0s/t5-small-fr-finetuned-en-to-it" : ("Italian", it_dataset), 
+    "din0s/t5-small-ro-finetuned-en-to-it" : ("Italian", it_dataset),
+    "din0s/t5-small-de-finetuned-en-to-it" : ("Italian", it_dataset),
+    "din0s/t5-small-finetuned-en-to-it" : ("Italian", it_dataset)
+    }
 
 tokenizer = AutoTokenizer.from_pretrained("t5-small")
 metric = evaluate.load("sacrebleu")
@@ -58,7 +61,7 @@ def compute_metrics(eval_preds):
     return result
 
 
-for lang_name, (model_name, dataset) in model_data_dict.items():
+for model_name, (lang_name, dataset) in model_data_dict.items():
 
     test_set = load_dataset(path=dataset, split="train[1500:3000]")
     model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
@@ -85,4 +88,10 @@ for lang_name, (model_name, dataset) in model_data_dict.items():
         compute_metrics=compute_metrics
     )
 
-    trainer.evaluate()
+    metrics = trainer.evaluate()
+
+    #save dict to json
+    with open(f"eval_results/{model_name.split('/')[1]}_metrics.json", "w") as f:
+        json.dump(metrics, f)
+
+
