@@ -161,8 +161,8 @@ class DistillerOneTeacher(pl.LightningModule):
 
     def _compute_ce_kl(self, student_logits, teacher_logits, decoder_input_ids, decoder_attention_mask):
         ce_loss = self.ce_loss(student_logits.permute(0, 2, 1), decoder_input_ids)
-        student_logits[decoder_attention_mask == 0] = -1e9
-        teacher_logits[decoder_attention_mask == 0] = -1e9
+        student_logits[decoder_attention_mask == 0] = -65504 if self.precision == 16 else -1e9
+        teacher_logits[decoder_attention_mask == 0] = -65504 if self.precision == 16 else -1e9
         kl_loss = self.kl_loss(torch.nn.functional.log_softmax(student_logits, dim=-1),
                                torch.nn.functional.softmax(teacher_logits, dim=-1))
         loss = self.loss_weights[0] * ce_loss + self.loss_weights[1] * kl_loss
