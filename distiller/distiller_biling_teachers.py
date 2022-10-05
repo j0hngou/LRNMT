@@ -219,7 +219,7 @@ class DistillerBilingTeachers(pl.LightningModule):
 
     def _compute_bleu(self, batch: dict):
         for pair in batch.keys():
-            prediction_ids = self.student.generate(batch[pair]["input_ids"])
+            prediction_ids = self.student.generate(batch[pair]["input_ids"], num_beams=5)
             prediction = self.tokenizer.batch_decode(prediction_ids, skip_special_tokens=True)
             target = self.tokenizer.batch_decode(batch[pair]["decoder_input_ids"], skip_special_tokens=True)
             target = [[t] for t in target]
