@@ -30,15 +30,27 @@ class MTDistillationDatamodule(pl.LightningDataModule):
 
     def setup(self, stage: Optional[str] = None):
         # Create a list with all the datasets
-        datasets = [MTDistillationDataset(name, pair[0], pair[1])
-                    for pair, name in zip(self.hparams.source_target_pair, self.hparams.dataset_names)]
+        if len(self.hparams.dataset_names) == 1:
+            splits = [[0, 1500], [1500, 3000], [3000, 15000]]
+            types = ['val', 'test', 'train']
+            self.dataset = {}
+            for split, type in zip(splits, types):
+                self.dataset[type] = MTDistillationDataset(
+                    self.hparams.dataset_names[0],
+                    self.hparams.source_target_pair[0][0],
+                    self.hparams.source_target_pair[0][1],
+                    split=split,
+                )
+        else:
+            datasets = [MTDistillationDataset(name, pair[0], pair[1])
+                        for pair, name in zip(self.hparams.source_target_pair, self.hparams.dataset_names)]
 
-        datasets = self.split_dataset(datasets)
+            datasets = self.split_dataset(datasets)
 
-        self.dataset = {}
-        self.dataset['train'] = ConcatDataset(datasets['train'])
-        self.dataset['val'] = ConcatDataset(datasets['val'])
-        self.dataset['test'] = ConcatDataset(datasets['test'])
+            self.dataset = {}
+            self.dataset['train'] = ConcatDataset(datasets['train'])
+            self.dataset['val'] = ConcatDataset(datasets['val'])
+            self.dataset['test'] = ConcatDataset(datasets['test'])
 
         # Create the tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(self.hparams.tokenizer_name)
@@ -138,9 +150,12 @@ class MTDistillationDatamodule(pl.LightningDataModule):
 
 
 class MTDistillationDataset(Dataset):
-    def __init__(self, dataset_name, source_lang, target_lang):
+    def __init__(self, dataset_name, source_lang, target_lang, split: Optional[list[int]] = None):
 
-        self.dataset = load_dataset(dataset_name, use_auth_token=True)["train"]
+        if split:
+            self.dataset = load_dataset(dataset_name, split=f"train[{split[0]}:{split[1]}]")
+        else:
+            self.dataset = load_dataset(dataset_name, use_auth_token=True)["train"]
         self.source_lang = source_lang
         self.target_lang = target_lang
 
