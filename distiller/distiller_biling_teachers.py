@@ -23,6 +23,7 @@ class DistillerBilingTeachers(pl.LightningModule):
                  schedule=None,
                  decay_epochs=None,
                  warmup_steps=0,
+                 init_path="din0s/t5-small-finetuned-en-to-ro",
                  ):
         super().__init__()
         self.save_hyperparameters(ignore=['teachers'])
@@ -36,7 +37,7 @@ class DistillerBilingTeachers(pl.LightningModule):
             self.student._init_weights(self.student)
             self.student.lm_head.reset_parameters()
         else:
-            self.student = AutoModelForSeq2SeqLM.from_pretrained("din0s/t5-small-finetuned-en-to-ro")
+            self.student = AutoModelForSeq2SeqLM.from_pretrained(init_path)
 
         if disable_dropout:
             self._disable_dropout()
@@ -254,10 +255,11 @@ class DistillerEnItTeachers(DistillerBilingTeachers):
                  random_initialized_student: bool = False,
                  disable_dropout: bool = False,
                  precision: int = 32,
+                 init_path="din0s/t5-small-finetuned-en-to-ro",
                  **kwargs):
         super().__init__(teachers=teachers, loss_weights=loss_weights, lr=lr, weight_decay=weight_decay,
                          random_initialized_student=random_initialized_student, disable_dropout=disable_dropout,
-                         precision=precision, **kwargs)
+                         precision=precision, init_path=init_path, **kwargs)
 
         self.pair = "en-it"
 

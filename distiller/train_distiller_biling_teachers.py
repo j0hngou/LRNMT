@@ -53,10 +53,14 @@ if len(args.dataset_names) == 1:
                                   )
     args.teacher_path = ['din0s/t5-small-de-finetuned-en-to-it', 'din0s/t5-small-fr-finetuned-en-to-it',
                          'din0s/t5-small-ro-finetuned-en-to-it']
+    init_path = 'din0s/t5-small-ro-finetuned-en-to-it'
 else:
     dm = MTDistillationDatamodule(batch_size=args.batch_size,
                                   )
+    init_path = "din0s/t5-small-finetuned-en-to-ro"
+
 dm.setup()
+
 num_train_batches = len(dm.train_dataloader())
 
 early_stop_callback = EarlyStopping(
@@ -87,6 +91,7 @@ if len(args.dataset_names) == 1:
         schedule=args.schedule,
         warmup_steps=args.warmup_steps,
         decay_epochs=args.decay_epochs,
+        init_path=init_path
     )
 else:
     distiller = DistillerBilingTeachers(
@@ -100,6 +105,7 @@ else:
         schedule=args.schedule,
         warmup_steps=args.warmup_steps,
         decay_epochs=args.decay_epochs,
+        init_path=init_path
     )
 
 trainer = pl.Trainer(
