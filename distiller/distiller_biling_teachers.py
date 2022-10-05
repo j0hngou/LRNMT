@@ -254,10 +254,10 @@ class DistillerEnItTeachers(DistillerBilingTeachers):
                  random_initialized_student: bool = False,
                  disable_dropout: bool = False,
                  precision: int = 32,
-                 ):
+                 **kwargs):
         super().__init__(teachers=teachers, loss_weights=loss_weights, lr=lr, weight_decay=weight_decay,
                          random_initialized_student=random_initialized_student, disable_dropout=disable_dropout,
-                         precision=precision)
+                         precision=precision, **kwargs)
 
         self.pair = "en-it"
 
