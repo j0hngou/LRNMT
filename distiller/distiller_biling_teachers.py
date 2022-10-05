@@ -228,17 +228,17 @@ class DistillerBilingTeachers(pl.LightningModule):
         if self.global_step < self.hparams.warmup_steps:
             self.hparams.loss_weights["kl"] = 1.0
             self.hparams.loss_weights["ce"] = 0.0
-
-        if self.hparams.schedule == "linear":
-            # Linearly decrease KL from 1 to 0.2
-            self.hparams.loss_weights["kl"] = max(0.2, 1 - self.current_epoch / self.hparams.decay_epochs)
-            self.hparams.loss_weights["ce"] = 1 - self.hparams.loss_weights["kl"]
-        elif self.hparams.schedule == "cosine":
-            # Cosine decay
-            self.hparams.loss_weights["kl"] = 0.5 * (1 + math.cos(math.pi * self.current_epoch / self.hparams.decay_epochs))
-            self.hparams.loss_weights["ce"] = 1 - self.hparams.loss_weights["kl"]
         else:
-            raise NotImplementedError(f"Schedule {self.hparams.schedule} not implemented")
+            if self.hparams.schedule == "linear":
+                # Linearly decrease KL from 1 to 0.2
+                self.hparams.loss_weights["kl"] = max(0.2, 1 - self.current_epoch / self.hparams.decay_epochs)
+                self.hparams.loss_weights["ce"] = 1 - self.hparams.loss_weights["kl"]
+            elif self.hparams.schedule == "cosine":
+                # Cosine decay
+                self.hparams.loss_weights["kl"] = 0.5 * (1 + math.cos(math.pi * self.current_epoch / self.hparams.decay_epochs))
+                self.hparams.loss_weights["ce"] = 1 - self.hparams.loss_weights["kl"]
+            else:
+                raise NotImplementedError(f"Schedule {self.hparams.schedule} not implemented")
 
     def configure_optimizers(self):
         optimizer = Adam(self.student.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
