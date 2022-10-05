@@ -5,26 +5,33 @@ import numpy as np
 import json
 
 it_dataset = "j0hngou/ccmatrix_en-it"
+
+languages = {"French" : "fr", "German" : "de", "Italian" : "it", "Romanian" : "ro", "English" : "en"}
+
 model_data_dict = {
-    "din0s/t5-small-finetuned-en-to-fr" : ("French", "j0hngou/ccmatrix_en-fr"), 
-    "din0s/t5-small-finetuned-en-to-ro" : ("Romanian", "din0s/ccmatrix_en-ro"), 
-    "din0s/t5-small-finetuned-en-to-de" : ("German", "j0hngou/ccmatrix_de-en"),
-    "din0s/t5-small-fr-finetuned-en-to-it" : ("Italian", it_dataset), 
-    "din0s/t5-small-ro-finetuned-en-to-it" : ("Italian", it_dataset),
-    "din0s/t5-small-de-finetuned-en-to-it" : ("Italian", it_dataset),
-    "din0s/t5-small-finetuned-en-to-it" : ("Italian", it_dataset)
-    }
+    ("French", "din0s/t5-small-finetuned-en-to-fr") : "j0hngou/ccmatrix_en-fr", 
+    ("Romanian", "din0s/t5-small-finetuned-en-to-ro") : "din0s/ccmatrix_en-ro", 
+    ("German","din0s/t5-small-finetuned-en-to-de"): "j0hngou/ccmatrix_de-en",
+    ("Italian", "din0s/t5-small-fr-finetuned-en-to-it") : it_dataset, 
+    ("Italian", "din0s/t5-small-ro-finetuned-en-to-it") : it_dataset,
+    ("Italian", "din0s/t5-small-de-finetuned-en-to-it") : it_dataset,
+    ("Italian", "din0s/t5-small-finetuned-en-to-it") : it_dataset,
+    ("French", "t5-small") : "j0hngou/ccmatrix_en-fr", 
+    ("Romanian", "t5-small") : "din0s/ccmatrix_en-ro", 
+    ("German", "t5-small"): "j0hngou/ccmatrix_de-en",
+    ("Italian", "t5-small") : it_dataset,
+}
 
 tokenizer = AutoTokenizer.from_pretrained("t5-small")
 metric = evaluate.load("sacrebleu")
+max_input_length = 256
+max_target_length = 256
 
 def postprocess_text(preds, labels):
     preds = [pred.strip() for pred in preds]
     labels = [[label.strip()] for label in labels]
     return preds, labels
 
-max_input_length = 256
-max_target_length = 256
 
 def preprocess_function(examples):
     inputs = [prefix + ex[source_lang] for ex in examples["translation"]]
@@ -61,19 +68,24 @@ def compute_metrics(eval_preds):
     return result
 
 
-for model_name, (lang_name, dataset) in model_data_dict.items():
+for (lang_name, model_name), dataset in model_data_dict.items():
 
     test_set = load_dataset(path=dataset, split="train[1500:3000]")
     model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
     data_collator = DataCollatorForSeq2Seq(tokenizer, model=model)
 
     source_lang = "en"
-    target_lang = model_name.split("-")[-1]
+    target_lang = languages[lang_name]
     prefix = f"translate English to {lang_name}: "
     tokenized_test_set = test_set.map(preprocess_function, batched=True)
 
+    if model_name.split('/')[0] == "t5-small":
+        model_name = "t5-small"
+    else:
+        model_name = model_name.split('/')[1]
+
     args = Seq2SeqTrainingArguments(
-        model_name.split("/")[1], 
+        f"{model_name}-{languages[lang_name]}", 
         generation_max_length=max_target_length,
         per_device_eval_batch_size=16,
         predict_with_generate=True,
@@ -88,10 +100,8 @@ for model_name, (lang_name, dataset) in model_data_dict.items():
         compute_metrics=compute_metrics
     )
 
-    metrics = trainer.evaluate()
+    metrics = trainer.evaluate(num_beams=5, max_length=max_target_length)
 
     #save dict to json
-    with open(f"eval_results/{model_name.split('/')[1]}_metrics.json", "w") as f:
+    with open(f"eval_results/{model_name}_{languages[lang_name]}_metrics.json", "w") as f:
         json.dump(metrics, f)
-
-
