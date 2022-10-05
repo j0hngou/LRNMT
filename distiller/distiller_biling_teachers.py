@@ -19,6 +19,9 @@ class DistillerBilingTeachers(pl.LightningModule):
                  random_initialized_student: bool = False,
                  disable_dropout: bool = False,
                  precision: int = 32,
+                 schedule=None,
+                 decay_epochs=None,
+                 warmup_steps=0,
                  ):
         super().__init__()
         self.save_hyperparameters(ignore=['teachers'])
@@ -137,7 +140,8 @@ class DistillerBilingTeachers(pl.LightningModule):
     def training_step(self,
                       batch: dict,
                       batch_idx: int, ) -> dict:
-
+        if self.hparams.schedule == "linear":
+            self._update_loss_weights()
         metrics = self.forward(batch, mode="train")
 
         self.log('train_loss', metrics["loss"])
@@ -218,6 +222,16 @@ class DistillerBilingTeachers(pl.LightningModule):
             target = self.tokenizer.batch_decode(batch[pair]["decoder_input_ids"], skip_special_tokens=True)
             target = [[t] for t in target]
             self.sacrebleu.add_batch(predictions=prediction, references=target)
+
+    def _update_loss_weights(self):
+        if self.global_step < self.hparams.warmup_steps:
+            self.hparams.loss_weights["kl"] = 1.0
+            self.hparams.loss_weights["ce"] = 0.0
+
+        if self.hparams.schedule == "linear":
+            # Linearly decrease KL from 1 to 0.2
+            self.hparams.loss_weights["kl"] = max(0.2, 1 - self.current_epoch / self.hparams.decay_epochs)
+            self.hparams.loss_weights["ce"] = 1 - self.hparams.loss_weights["kl"]
 
     def configure_optimizers(self):
         optimizer = Adam(self.student.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)

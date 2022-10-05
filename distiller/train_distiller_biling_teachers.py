@@ -38,6 +38,9 @@ parser.add_argument('--random_initialized_student', action='store_true', help='W
 default=False)
 parser.add_argument('--experiment_name', type=str, default='', help='The name of the experiment.')
 parser.add_argument('--disable_dropout', action='store_true', help='Disables dropout in the student model.', default=False)
+parser.add_argument('--schedule', type=str, default='', help='The schedule to use for the KL loss decay', choices=['linear', 'cosine'])
+parser.add_argument('--warmup_steps', type=int, default=1000, help='The number of warmup steps for the KL loss decay.')
+parser.add_argument('--decay_epochs', type=int, default=5, help='The number of epochs to decay the KL loss.')
 
 args = parser.parse_args()
 
@@ -54,6 +57,7 @@ else:
     dm = MTDistillationDatamodule(batch_size=args.batch_size,
                                   )
 dm.setup()
+num_train_batches = len(dm.train_dataloader())
 
 early_stop_callback = EarlyStopping(
     monitor='val_bleu',
@@ -80,7 +84,9 @@ if len(args.dataset_names) == 1:
         random_initialized_student=args.random_initialized_student,
         disable_dropout=args.disable_dropout,
         precision=16 if args.fp16 else 32,
-
+        schedule=args.schedule,
+        warmup_steps=args.warmup_steps,
+        decay_epochs=args.decay_epochs,
     )
 else:
     distiller = DistillerBilingTeachers(
@@ -91,6 +97,9 @@ else:
         random_initialized_student=args.random_initialized_student,
         disable_dropout=args.disable_dropout,
         precision=16 if args.fp16 else 32,
+        schedule=args.schedule,
+        warmup_steps=args.warmup_steps,
+        decay_epochs=args.decay_epochs,
     )
 
 trainer = pl.Trainer(
