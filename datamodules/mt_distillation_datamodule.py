@@ -53,7 +53,7 @@ class MTDistillationDatamodule(pl.LightningDataModule):
             self.dataset['test'] = ConcatDataset(datasets['test'])
 
         # Create the tokenizer
-        self.tokenizer = AutoTokenizer.from_pretrained(self.hparams.tokenizer_name)
+        self.tokenizer = AutoTokenizer.from_pretrained(self.hparams.tokenizer_name, model_max_length=256)
 
     @staticmethod
     def split_dataset(datasets: List[Dataset]) -> dict[str, List[Dataset]]:
