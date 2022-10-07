@@ -17,4 +17,4 @@ source activate dl4nlp
 
 cd scripts
 
-python -u generate_synthetic_data.py --model_name din0s/t5-small-ro-finetuned-en-to-it --batch_size 64 --num_samples 1000000
+python -u generate_synthetic_data.py --model_name din0s/t5-small-ro-finetuned-en-to-it --batch_size 64 --num_samples 12000
