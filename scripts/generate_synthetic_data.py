@@ -18,7 +18,7 @@ def generate_synthetic_data(model, dm, save_location, num_samples=1000):
     for batch in tqdm.tqdm(dm.train_dataloader(), total=num_samples // batch_size):
         input_ids = batch['en-it']['input_ids'].to(device)
         attention_mask = batch['en-it']['attention_mask'].to(device)
-        output = model.generate(input_ids, attention_mask=attention_mask, max_length=256, num_beams=10, early_stopping=True)
+        output = model.generate(input_ids, attention_mask=attention_mask, max_length=256, num_beams=5, early_stopping=True)
         decoded = tokenizer.batch_decode(output, skip_special_tokens=True)
         decoded_input = tokenizer.batch_decode(batch['en-it']['input_ids'], skip_special_tokens=True)
         with open(save_location, 'a') as f:
