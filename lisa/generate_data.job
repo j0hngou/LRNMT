@@ -1,0 +1,20 @@
+#!/bin/bash
+
+#SBATCH --partition=gpu_titanrtx_shared_course
+#SBATCH --gres=gpu:1
+#SBATCH --job-name=GenSynthEnRoIt
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=6
+#SBATCH --time=48:00:00
+#SBATCH --mem=60000M
+#SBATCH --output=lisa/outputs/dl4nlp_gensynth_%A.out
+
+module purge
+module load 2021
+module load Anaconda3/2021.05
+
+source activate dl4nlp
+
+cd scripts
+
+python -u generate_synthetic_data.py --model_name din0s/t5-small-ro-finetuned-en-to-it --batch_size 64 --num_samples 1000000
