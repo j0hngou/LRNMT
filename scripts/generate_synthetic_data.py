@@ -9,6 +9,13 @@ from transformers import AutoModelForSeq2SeqLM
 from datamodules import MTDistillationDatamodule
 from transformers import AutoTokenizer
 
+def preprocessString(string):
+    # escape double quotes
+    string = string.replace('"', '\\"')
+    # remove prefix
+    prefix = "translate English to Italian: "
+    string = string.replace(prefix, '')
+    return string
 
 def generate_synthetic_data(model, dm, save_location, num_samples=1000):
     num_generated = 0
@@ -21,9 +28,9 @@ def generate_synthetic_data(model, dm, save_location, num_samples=1000):
         output = model.generate(input_ids, attention_mask=attention_mask, max_length=256, num_beams=5, early_stopping=True)
         decoded = tokenizer.batch_decode(output, skip_special_tokens=True)
         decoded_input = tokenizer.batch_decode(batch['en-it']['input_ids'], skip_special_tokens=True)
-        with open(save_location, 'a') as f:
+        with open(save_location, 'a', encoding='utf-8') as f:
             for line in zip(decoded_input, decoded):
-                f.write(f'{{ "en": "{line[0]}", "it": "{line[1]}" }}\n')
+                f.write(f'{{ "en": "{preprocessString(line[0])}", "it": "{preprocessString(line[1])}" }}\n')
         num_generated += len(decoded)
         if num_generated >= num_samples:
             break

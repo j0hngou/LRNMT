@@ -1,4 +1,4 @@
-from datasets import load_dataset, load_metric
+from datasets import load_dataset
 import evaluate
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, Seq2SeqTrainer, DataCollatorForSeq2Seq, Seq2SeqTrainingArguments
 import numpy as np
@@ -22,7 +22,7 @@ model_data_dict = {
     ("Italian", "t5-small") : it_dataset,
 }
 
-tokenizer = AutoTokenizer.from_pretrained("t5-small")
+tokenizer = AutoTokenizer.from_pretrained("t5-small", model_max_length=512)
 metric = evaluate.load("sacrebleu")
 max_input_length = 256
 max_target_length = 256
@@ -48,10 +48,10 @@ def preprocess_function(examples):
 
 def compute_metrics(eval_preds):
     preds, labels = eval_preds
+    
     if isinstance(preds, tuple):
         preds = preds[0]
     decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
-
     # Replace -100 in the labels as we can't decode them.
     labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
     decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
@@ -79,8 +79,8 @@ for (lang_name, model_name), dataset in model_data_dict.items():
     prefix = f"translate English to {lang_name}: "
     tokenized_test_set = test_set.map(preprocess_function, batched=True)
 
-    if model_name.split('/')[0] == "t5-small":
-        model_name = "t5-small"
+    if len(model_name.split('/')) == 1:
+        model_name = model_name.split('/')[0]
     else:
         model_name = model_name.split('/')[1]
 
