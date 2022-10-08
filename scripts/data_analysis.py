@@ -1,96 +1,122 @@
 from datasets import load_dataset
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, T5TokenizerFast
+
+
+def get_dataset(path: dict) -> dict:
+    dataset = {}
+    for key, value in path.items():
+        if key == "it":
+            dataset[key] = load_dataset(value, split="train[3000:15000]")["translation"]
+        else:
+            dataset[key] = load_dataset(value)["train"]["translation"]
+    return dataset
+
+
+def get_sentences(dataset:dict) -> dict:
+    sentences = {}
+    for key, value in dataset.items():
+        sentences[key] = []
+        for pair in value:
+            sentences[key].append(pair[key])
+
+    return sentences
+
+
+def get_avg_len(sentences: dict) -> dict:
+    avg_len = {}
+    for key, value in sentences.items():
+        avg_len[key] = sum([len(sentence.split()) for sentence in value]) / len(value)
+    return avg_len
+
+
+def tokenize_sentences(sentences: dict, tokenizer: T5TokenizerFast, batch_size=1000) -> dict:
+    tokenized_sentences = {}
+    for key, value in sentences.items():
+        tokens = []
+        for i in range(0, len(value), batch_size):
+            tokens.extend(tokenizer(value[i: i + batch_size]).input_ids)
+        tokenized_sentences[key] = tokens
+
+    return tokenized_sentences
+
+
+def get_ngrams(tokenized_sentences: dict) -> tuple[dict, dict, dict]:
+    unigrams = {}
+    bigrams = {}
+    trigrams = {}
+    for key, value in tokenized_sentences.items():
+        unigrams[key] = set()
+        bigrams[key] = set()
+        trigrams[key] = set()
+        for sentence in value:
+            for i, token in enumerate(sentence):
+                unigrams[key].add(token)
+                if i < len(sentence) - 1:
+                    bigrams[key].add((token, sentence[i + 1]))
+                if i < len(sentence) - 2:
+                    trigrams[key].add((token, sentence[i + 1], sentence[i + 2]))
+    return unigrams, bigrams, trigrams
+
+
+def get_intersection(ngrams: dict):
+    intersection = {}
+    keys = list(ngrams.keys())
+    for i in range(len(keys)):
+        for j in range(i + 1, len(keys)):
+            intersection[f"{keys[i]}-{keys[j]}"] = ngrams[keys[i]].intersection(ngrams[keys[j]])
+    return intersection
+
+
+def pretty_print(intersection: dict, ngram: dict, ngram_name: str):
+    keys = list(intersection.keys())
+    print(f"Analysis of {ngram_name}")
+    print('*'*50)
+    # Print the length of the intersections
+    for key in keys:
+        print(f"{ngram_name} intersection between {key}: {len(intersection[key])}")
+
+    print('-'*50)
+    # Print the length of the difference between the intersections
+    for key in keys:
+        keys_ = keys.copy()
+        keys_.remove(key)
+        for key_ in keys_:
+            print(f"{ngram_name} difference between {key} and {key_}: "
+                  f"{len(intersection[key].difference(intersection[key_]))}")
+
+    print('-'*50)
+    # Print the length of the difference of the union between two intersections and the other
+    for key in keys:
+        keys_ = keys.copy()
+        keys_.remove(key)
+        print(f"{ngram_name} the union of  {keys_[0]} and {keys_[1]} diff {key}  : "
+                f"{len(intersection[keys_[0]].union(intersection[keys_[1]]).difference(intersection[key]))}")
+
+    print('-'*50)
+    # Print the length of the ngrams
+    for key in ngram.keys():
+        print(f"{ngram_name} length {key} : {len(ngram[key])}")
+
+    print('*'*50)
+
 
 path = {"it": "j0hngou/ccmatrix_en-it", "fr": "j0hngou/ccmatrix_en-fr", "ro": "din0s/ccmatrix_en-ro"}
-
-# Load the datasets
-dataset = {}
-for key, value in path.items():
-    if key == "it":
-        dataset[key] = load_dataset(value, split="train[3000:15000]")["translation"]
-    else:
-        dataset[key] = load_dataset(value)["train"]["translation"]
-
-# Keep only the Italian, French and Romanian sentences
-sentences = {}
-for key, value in dataset.items():
-    sentences[key] = []
-    for pair in value:
-        sentences[key].append(pair[key])
-
-del dataset
-
-# Calculate the average length of the sentences
-avg_len = {}
-for key, value in sentences.items():
-    avg_len[key] = sum([len(sentence.split()) for sentence in value]) / len(value)
-
 tokenizer = AutoTokenizer.from_pretrained("t5-small")
 
-# Tokenize the sentences
-tokenized_sentences = {}
-batch_size = 1000
-for key, value in sentences.items():
-    tokens = []
-    for i in range(0, len(value), batch_size):
-        tokens.extend(tokenizer(value[i: i + batch_size]).input_ids)
-    tokenized_sentences[key] = tokens
+dataset = get_dataset(path)
+sentences = get_sentences(dataset)
+avg_len = get_avg_len(sentences)
+tokenized_sentences = tokenize_sentences(sentences, tokenizer)
+unigrams, bigrams, trigrams = get_ngrams(tokenized_sentences)
 
-# Get the unigrams, bigrams and trigrams
-unigrams = {}
-bigrams = {}
-trigrams = {}
-for key, value in tokenized_sentences.items():
-    unigrams[key] = set()
-    bigrams[key] = set()
-    trigrams[key] = set()
-    for sentence in value:
-        for i, token in enumerate(sentence):
-            unigrams[key].add(token)
-            if i < len(sentence) - 1:
-                bigrams[key].add((token, sentence[i + 1]))
-            if i < len(sentence) - 2:
-                trigrams[key].add((token, sentence[i + 1], sentence[i + 2]))
+unigrams_intersection = get_intersection(unigrams)
+bigrams_intersection = get_intersection(bigrams)
+trigrams_intersection = get_intersection(trigrams)
 
-# Calculate Intersections of unigrams, bigrams and trigrams
-unigrams_intersection = {"it-fr": unigrams["it"].intersection(unigrams["fr"]),
-                         "it-ro": unigrams["it"].intersection(unigrams["ro"]),
-                         "fr-ro": unigrams["fr"].intersection(unigrams["ro"])}
-bigrams_intersection = {"it-fr": bigrams["it"].intersection(bigrams["fr"]),
-                        "it-ro": bigrams["it"].intersection(bigrams["ro"]),
-                        "fr-ro": bigrams["fr"].intersection(bigrams["ro"])}
-trigrams_intersection = {"it-fr": trigrams["it"].intersection(trigrams["fr"]),
-                         "it-ro": trigrams["it"].intersection(trigrams["ro"]),
-                         "fr-ro": trigrams["fr"].intersection(trigrams["ro"])}
+for key in avg_len.keys():
+    print(f"Average length of {key} sentences: {avg_len[key]}")
+print('*'*50)
 
-# Print the intersections and their difference
-print("Unigram intersetion between Italian and French: ", len(unigrams_intersection["it-fr"]))
-print("Unigram intersetion between Italian and Romanian: ", len(unigrams_intersection["it-ro"]))
-print("Unigram intersetion between French and Romanian: ", len(unigrams_intersection["fr-ro"]))
-print("Unigram it-fr diff it-ro", len(unigrams_intersection["it-fr"] - unigrams_intersection["it-ro"]))
-print("Unigram it-ro diff it-fr", len(unigrams_intersection["it-ro"] - unigrams_intersection["it-fr"]))
-print("Unigram (itro inters itft) - frro", len(unigrams_intersection["it-ro"].union(unigrams_intersection["it-fr"]) - unigrams_intersection["fr-ro"]))
-print()
-print("Bigram intersetion between Italian and French: ", len(bigrams_intersection["it-fr"]))
-print("Bigram intersetion between Italian and Romanian: ", len(bigrams_intersection["it-ro"]))
-print("Bigram intersetion between French and Romanian: ", len(bigrams_intersection["fr-ro"]))
-print("Bigram it-fr diff it-ro", len(bigrams_intersection["it-fr"] - bigrams_intersection["it-ro"]))
-print("Bigram it-ro diff it-fr", len(bigrams_intersection["it-ro"] - bigrams_intersection["it-fr"]))
-print("Bigram (itro inters itft) - frro",len(bigrams_intersection["it-ro"].union(bigrams_intersection["it-fr"]) - bigrams_intersection["fr-ro"]))
-print()
-print("Trigram intersetion between Italian and French: ", len(trigrams_intersection["it-fr"]))
-print("Trigram intersetion between Italian and Romanian: ", len(trigrams_intersection["it-ro"]))
-print("Trigram intersetion between French and Romanian: ", len(trigrams_intersection["fr-ro"]))
-print("Trigram it-fr diff it-ro", len(trigrams_intersection["it-fr"] - trigrams_intersection["it-ro"]))
-print("Trigram it-ro diff it-fr", len(trigrams_intersection["it-ro"] - trigrams_intersection["it-fr"]))
-print("Trigram (itro inters itft) - frro", len(trigrams_intersection["it-ro"].union(trigrams_intersection["it-fr"]) - trigrams_intersection["fr-ro"]))
-print()
-# Print the length of unigrams, bigrams and trigrams
-print(f"Unigrams Length: It {len(unigrams['it'])}, Fr {len(unigrams['fr'])}, Ro {len(unigrams['ro'])}")
-print(f"Bigrams Length: It {len(bigrams['it'])}, Fr {len(bigrams['fr'])}, Ro {len(bigrams['ro'])}")
-print(f"Trigrams Length: It {len(trigrams['it'])}, Fr {len(trigrams['fr'])}, Ro {len(trigrams['ro'])}")
-print()
-# Print average length of sentences
-print("Average length of Italian sentences: ", avg_len["it"])
-print("Average length of French sentences: ", avg_len["fr"])
-print("Average length of Romanian sentences: ", avg_len["ro"])
+pretty_print(unigrams_intersection, unigrams, "Unigrams")
+pretty_print(bigrams_intersection, bigrams, "Bigrams")
+pretty_print(trigrams_intersection, trigrams, "Trigrams")
