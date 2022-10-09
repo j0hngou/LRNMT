@@ -17,6 +17,7 @@ def preprocessString(string):
     string = string.replace(prefix, '')
     return string
 
+
 def generate_synthetic_data(model, dm, save_location, num_samples=1000):
     num_generated = 0
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -41,8 +42,10 @@ if __name__ == '__main__':
     parser.add_argument('--model_name', type=str, default='din0s/t5-small-ro-finetuned-en-to-it')
     parser.add_argument('--dataset_name', type=str, default='j0hngou/ccmatrix_en-it')
     parser.add_argument('--save_location', type=str, default=f'data/synthetic_data')
-    parser.add_argument('--batch_size', type=int, default=64)
+    parser.add_argument('--batch_size', type=int, default=4)
     parser.add_argument('--num_samples', type=int, default=1000)
+    parser.add_argument('--start_dataset', type=int, default=15000)
+    parser.add_argument('--end_dataset', type=int, default=27000)
     args = parser.parse_args()
 
     dataset_name = args.dataset_name
@@ -51,8 +54,9 @@ if __name__ == '__main__':
     batch_size = args.batch_size
     num_samples = args.num_samples
 
+    splits = [[0, 1500], [1500, 3000], [args.start_dataset, args.end_dataset]]
     dm = MTDistillationDatamodule(dataset_names=[dataset_name], source_target_pair=[('en', 'it')],
-                                  batch_size=batch_size)
+                                  batch_size=batch_size, splits=splits)
     dm.setup()
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForSeq2SeqLM.from_pretrained(model_name)

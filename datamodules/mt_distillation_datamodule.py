@@ -18,6 +18,7 @@ class MTDistillationDatamodule(pl.LightningDataModule):
         batch_size: int = 64,
         num_workers: int = 6,
         group_pairs: bool = True,
+        splits=[[0, 1500], [1500, 3000], [3000, 15000]],
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -31,10 +32,9 @@ class MTDistillationDatamodule(pl.LightningDataModule):
     def setup(self, stage: Optional[str] = None):
         # Create a list with all the datasets
         if len(self.hparams.dataset_names) == 1:
-            splits = [[0, 1500], [1500, 3000], [3000, 15000]]
             types = ['val', 'test', 'train']
             self.dataset = {}
-            for split, type in zip(splits, types):
+            for split, type in zip(self.hparams.splits, types):
                 self.dataset[type] = MTDistillationDataset(
                     self.hparams.dataset_names[0],
                     self.hparams.source_target_pair[0][0],
