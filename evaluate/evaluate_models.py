@@ -4,25 +4,39 @@ from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, Seq2SeqTrainer, D
 import numpy as np
 import json
 
-it_dataset = "j0hngou/ccmatrix_en-it"
+datasets = {
+    "en-it" : "j0hngou/ccmatrix_en-it", 
+    "en-ro" : "din0s/ccmatrix_en-ro", 
+    "en-fr" : "j0hngou/ccmatrix_en-fr",
+    }
 
-languages = {"French" : "fr", "German" : "de", "Italian" : "it", "Romanian" : "ro", "English" : "en"}
+languages = {
+    "French" : "fr", 
+    "Italian" : "it", 
+    "Romanian" : "ro", 
+    "English" : "en",
+    }
+
+models = {
+    "en-fr" : "j0hngou/t5-base-finetuned-en-to-fr", 
+    "en-ro" : "j0hngou/t5-base-finetuned-en-to-ro", 
+    "en-it" : "din0s/t5-base-finetuned-en-to-it",
+    "en-fr-it" : "din0s/t5-base_fr-finetuned-en-to-it",
+    "en-ro-it" : "din0s/t5-base_ro-finetuned-en-to-it",
+    }
 
 model_data_dict = {
-    ("French", "din0s/t5-small-finetuned-en-to-fr") : "j0hngou/ccmatrix_en-fr", 
-    ("Romanian", "din0s/t5-small-finetuned-en-to-ro") : "din0s/ccmatrix_en-ro", 
-    ("German","din0s/t5-small-finetuned-en-to-de"): "j0hngou/ccmatrix_de-en",
-    ("Italian", "din0s/t5-small-fr-finetuned-en-to-it") : it_dataset, 
-    ("Italian", "din0s/t5-small-ro-finetuned-en-to-it") : it_dataset,
-    ("Italian", "din0s/t5-small-de-finetuned-en-to-it") : it_dataset,
-    ("Italian", "din0s/t5-small-finetuned-en-to-it") : it_dataset,
-    ("French", "t5-small") : "j0hngou/ccmatrix_en-fr", 
-    ("Romanian", "t5-small") : "din0s/ccmatrix_en-ro", 
-    ("German", "t5-small"): "j0hngou/ccmatrix_de-en",
-    ("Italian", "t5-small") : it_dataset,
-}
+    ("French",   models["en-fr"]) : datasets["en-fr"], 
+    ("Romanian", models["en-ro"]) : datasets["en-ro"], 
+    ("Italian",  models["en-it"]) : datasets["en-it"], 
+    ("Italian",  models["en-fr-it"]) : datasets["en-it"],
+    ("Italian",  models["en-ro-it"]) : datasets["en-it"],
+    ("French",   "t5-base") : datasets["en-fr"],
+    ("Romanian", "t5-base") : datasets["en-ro"],
+    ("Italian",  "t5-base") : datasets["en-it"],
+    }
 
-tokenizer = AutoTokenizer.from_pretrained("t5-small", model_max_length=512)
+tokenizer = AutoTokenizer.from_pretrained("t5-base", model_max_length=512)
 metric = evaluate.load("sacrebleu")
 max_input_length = 256
 max_target_length = 256
@@ -85,7 +99,7 @@ for (lang_name, model_name), dataset in model_data_dict.items():
         model_name = model_name.split('/')[1]
 
     args = Seq2SeqTrainingArguments(
-        f"{model_name}-{languages[lang_name]}", 
+        f"eval_results/{model_name}-{languages[lang_name]}", 
         generation_max_length=max_target_length,
         per_device_eval_batch_size=16,
         predict_with_generate=True,
