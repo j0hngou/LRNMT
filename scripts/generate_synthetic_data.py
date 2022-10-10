@@ -13,7 +13,7 @@ def preprocessString(string):
     # escape double quotes
     string = string.replace('"', '\\"')
     # remove prefix
-    prefix = "translate English to Italian: "
+    prefix = "translate Italian to English: "
     string = string.replace(prefix, '')
     return string
 
@@ -24,14 +24,14 @@ def generate_synthetic_data(model, dm, save_location, num_samples=1000):
     batch_size = dm.train_dataloader().batch_size
     model.to(device)
     for batch in tqdm.tqdm(dm.train_dataloader(), total=num_samples // batch_size):
-        input_ids = batch['en-it']['input_ids'].to(device)
-        attention_mask = batch['en-it']['attention_mask'].to(device)
+        input_ids = batch['it-en']['input_ids'].to(device)
+        attention_mask = batch['it-en']['attention_mask'].to(device)
         output = model.generate(input_ids, attention_mask=attention_mask, max_length=256, num_beams=5, early_stopping=True)
         decoded = tokenizer.batch_decode(output, skip_special_tokens=True)
-        decoded_input = tokenizer.batch_decode(batch['en-it']['input_ids'], skip_special_tokens=True)
+        decoded_input = tokenizer.batch_decode(batch['it-en']['input_ids'], skip_special_tokens=True)
         with open(save_location, 'a', encoding='utf-8') as f:
             for line in zip(decoded_input, decoded):
-                f.write(f'{{ "en": "{preprocessString(line[0])}", "it": "{preprocessString(line[1])}" }}\n')
+                f.write(f'{{ "it": "{preprocessString(line[0])}", "en": "{preprocessString(line[1])}" }}\n')
         num_generated += len(decoded)
         if num_generated >= num_samples:
             break
@@ -55,7 +55,7 @@ if __name__ == '__main__':
     num_samples = args.num_samples
 
     splits = [[0, 1500], [1500, 3000], [args.start_dataset, args.end_dataset]]
-    dm = MTDistillationDatamodule(dataset_names=[dataset_name], source_target_pair=[('en', 'it')],
+    dm = MTDistillationDatamodule(dataset_names=[dataset_name], source_target_pair=[('it', 'en')],
                                   batch_size=batch_size, splits=splits)
     dm.setup()
     tokenizer = AutoTokenizer.from_pretrained(model_name)
