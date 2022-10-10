@@ -23,6 +23,8 @@ models = {
     "en-it" : "din0s/t5-base-finetuned-en-to-it",
     "en-fr-it" : "din0s/t5-base_fr-finetuned-en-to-it",
     "en-ro-it" : "din0s/t5-base_ro-finetuned-en-to-it",
+    "hrs" : "din0s/t5-base-finetuned-en-to-it-hrs",
+    "lrs" : "din0s/t5-base-finetuned-en-to-it-lrs",    
     }
 
 model_data_dict = {
@@ -34,6 +36,8 @@ model_data_dict = {
     ("French",   "t5-base") : datasets["en-fr"],
     ("Romanian", "t5-base") : datasets["en-ro"],
     ("Italian",  "t5-base") : datasets["en-it"],
+    ("Italian",  models["hrs"]) : datasets["en-it"],
+    ("Italian",  models["lrs"]) : datasets["en-it"],
     }
 
 tokenizer = AutoTokenizer.from_pretrained("t5-base", model_max_length=512)
@@ -84,6 +88,7 @@ def compute_metrics(eval_preds):
 
 for (lang_name, model_name), dataset in model_data_dict.items():
 
+    # Load test split
     test_set = load_dataset(path=dataset, split="train[1500:3000]")
     model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
     data_collator = DataCollatorForSeq2Seq(tokenizer, model=model)
@@ -103,6 +108,7 @@ for (lang_name, model_name), dataset in model_data_dict.items():
         generation_max_length=max_target_length,
         per_device_eval_batch_size=16,
         predict_with_generate=True,
+        report_to="none",
     )
 
     trainer = Seq2SeqTrainer(
