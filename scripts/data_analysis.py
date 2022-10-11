@@ -182,9 +182,9 @@ def plot_venn(path: dict, splits: list, languages: list, save: bool, name: str) 
     for i, ngram in enumerate([unigrams, bigrams, trigrams]):
         ngram_name = ["unigrams", "bigrams", "trigrams"][i]
         if len(keys) == 2:
-            venn2([ngram[keys[0]], ngram[keys[1]]], keys)
+            venn2([ngram[keys[0]], ngram[keys[1]]], name.split('-'))
         elif len(keys) == 3:
-            venn3([ngram[keys[0]], ngram[keys[1]], ngram[keys[2]]], keys)
+            venn3([ngram[keys[0]], ngram[keys[1]], ngram[keys[2]]], name.split('-'))
 
         if save:
             plt.savefig(f"venn_{ngram_name}_{name}.png")
@@ -236,7 +236,7 @@ if __name__ == "__main__":
     languages = []
     languages.append(["it", "fr", "ro"])
     languages.append(["it", "de"])
-    languages.append(["it", "ithrs", "itlrs"])
+    languages.append(["it", "it", "it"])
 
     names = ["Italian-French-Romanian", "Italian-German", "Italian-HRS-LRS"]
 
