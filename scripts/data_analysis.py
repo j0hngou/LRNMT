@@ -5,13 +5,31 @@ from matplotlib_venn import venn3, venn2
 
 
 def get_dataset(path: dict, splits: list) -> dict:
+    """
+    Load the dataset from the path
+    Args:
+        path: path to the dataset
+        splits: list of splits to load
+
+    Returns:
+        dataset: dictionary of the dataset
+    """
     dataset = {}
     for key, split in zip(path.keys(), splits):
         dataset[key] = load_dataset(path[key], split=f"train[{split[0]}:{split[1]}]")["translation"]
     return dataset
 
 
-def get_sentences(dataset:dict, languages: list) -> dict:
+def get_sentences(dataset: dict, languages: list) -> dict:
+    """
+    Get the sentences from the dataset
+    Args:
+        dataset: dictionary of the dataset
+        languages: list of languages to get the sentences from
+
+    Returns:
+        sentences: dictionary of the sentences
+    """
     sentences = {}
     for key, lang in zip(dataset.keys(), languages):
         sentences[key] = []
@@ -22,6 +40,14 @@ def get_sentences(dataset:dict, languages: list) -> dict:
 
 
 def get_avg_len(sentences: dict) -> dict:
+    """
+    Get the average length of the sentences
+    Args:
+        sentences: dictionary of the sentences
+
+    Returns:
+        avg_len: dictionary of the average length of the sentences
+    """
     avg_len = {}
     for key, value in sentences.items():
         avg_len[key] = sum([len(sentence.split()) for sentence in value]) / len(value)
@@ -29,6 +55,16 @@ def get_avg_len(sentences: dict) -> dict:
 
 
 def tokenize_sentences(sentences: dict, tokenizer: T5TokenizerFast, batch_size=1000) -> dict:
+    """
+    Tokenize the sentences
+    Args:
+        sentences: dictionary of the sentences
+        tokenizer: tokenizer to use
+        batch_size: batch size to use
+
+    Returns:
+        tokenized_sentences: dictionary of the tokenized sentences
+    """
     tokenized_sentences = {}
     for key, value in sentences.items():
         tokens = []
@@ -40,6 +76,16 @@ def tokenize_sentences(sentences: dict, tokenizer: T5TokenizerFast, batch_size=1
 
 
 def get_ngrams(tokenized_sentences: dict) -> tuple[dict, dict, dict]:
+    """
+    Get the ngrams from the tokenized sentences
+    Args:
+        tokenized_sentences: dictionary of the tokenized sentences
+
+    Returns:
+        unigrams: dictionary of the unigrams
+        bigrams: dictionary of the bigrams
+        trigrams: dictionary of the trigrams
+    """
     unigrams = {}
     bigrams = {}
     trigrams = {}
@@ -57,7 +103,15 @@ def get_ngrams(tokenized_sentences: dict) -> tuple[dict, dict, dict]:
     return unigrams, bigrams, trigrams
 
 
-def get_intersection(ngrams: dict):
+def get_intersection(ngrams: dict) -> dict:
+    """
+    Get the intersection of the ngrams
+    Args:
+        ngrams: dictionary of the ngrams
+
+    Returns:
+        intersection: dictionary of the intersection of the ngrams
+    """
     intersection = {}
     keys = list(ngrams.keys())
     for i in range(len(keys)):
@@ -66,15 +120,22 @@ def get_intersection(ngrams: dict):
     return intersection
 
 
-def pretty_print(intersection: dict, ngram: dict, ngram_name: str):
+def pretty_print(intersection: dict, ngram: dict, ngram_name: str) -> None:
+    """
+    Pretty print the intersection of the ngrams
+    Args:
+        intersection: dictionary of the intersection of the ngrams
+        ngram: dictionary of the ngrams
+        ngram_name: name of the ngrams
+    """
     keys = list(intersection.keys())
     print(f"Analysis of {ngram_name}")
-    print('*'*50)
+    print('*' * 50)
     # Print the length of the intersections
     for key in keys:
         print(f"{ngram_name} intersection between {key}: {len(intersection[key])}")
 
-    print('-'*50)
+    print('-' * 50)
     # Print the length of the difference between the intersections
     for key in keys:
         keys_ = keys.copy()
@@ -83,23 +144,32 @@ def pretty_print(intersection: dict, ngram: dict, ngram_name: str):
             print(f"{ngram_name} difference between {key} and {key_}: "
                   f"{len(intersection[key].difference(intersection[key_]))}")
 
-    print('-'*50)
+    print('-' * 50)
     # Print the length of the difference of the union between two intersections and the other
     for key in keys:
         keys_ = keys.copy()
         keys_.remove(key)
         print(f"{ngram_name} the union of  {keys_[0]} and {keys_[1]} diff {key}  : "
-                f"{len(intersection[keys_[0]].union(intersection[keys_[1]]).difference(intersection[key]))}")
+              f"{len(intersection[keys_[0]].union(intersection[keys_[1]]).difference(intersection[key]))}")
 
-    print('-'*50)
+    print('-' * 50)
     # Print the length of the ngrams
     for key in ngram.keys():
         print(f"{ngram_name} length {key} : {len(ngram[key])}")
 
-    print('*'*50)
+    print('*' * 50)
 
 
-def plot_venn(path: dict, splits: list, languages: list, save: bool, name: str):
+def plot_venn(path: dict, splits: list, languages: list, save: bool, name: str) -> None:
+    """
+    Plot the venn diagram of the ngrams
+    Args:
+        path: path to the dataset
+        splits: list of splits to load
+        languages: list of languages to get the sentences from
+        save: whether to save the plot or not
+        name: name of the plot
+    """
     tokenizer = AutoTokenizer.from_pretrained("t5-small")
 
     dataset = get_dataset(path, splits)
@@ -122,7 +192,14 @@ def plot_venn(path: dict, splits: list, languages: list, save: bool, name: str):
             plt.show()
 
 
-def print_stats(path: dict, splits: list, languages: list):
+def print_stats(path: dict, splits: list, languages: list) -> None:
+    """
+    Print the stats of the dataset
+    Args:
+        path: path to the dataset
+        splits: list of splits to load
+        languages: list of languages to get the sentences from
+    """
     tokenizer = AutoTokenizer.from_pretrained("t5-small")
 
     dataset = get_dataset(path, splits)
