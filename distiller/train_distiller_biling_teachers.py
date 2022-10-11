@@ -23,12 +23,12 @@ parser.add_argument('--teacher_lang', nargs='+', type=str,
                     default=["en-de", "en-fr", "en-ro"])
 parser.add_argument('--dataset_names', nargs='+', type=str,
                     help='The path(or huggingface path) to the datasets. If there are multiple, they should be separated by a space.',
-                    default=["din0s/ccmatrix_en-ro", "j0hngou/ccmatrix_en-fr", "j0hngou/ccmatrix_de-en"])
+                    default=["j0hngou/ccmatrix_en-it"])
 parser.add_argument('--loss_weights', nargs='+', type=float, default=[1 / 2, 1 / 2, 0], help='The weights to use for the loss. \
                     loss_weights format: [CE, KL, Cosine]')
 parser.add_argument('--lr', type=float, default=2e-5, help='The learning rate.')
 parser.add_argument('--weight_decay', type=float, default=0.0, help='The weight decay.')
-parser.add_argument('--batch_size', type=int, default=8, help='The batch size.')
+parser.add_argument('--batch_size', type=int, default=5, help='The batch size.')
 parser.add_argument('--max_epochs', type=int, default=10, help='The maximum number of epochs.')
 parser.add_argument('--fp16', action='store_true', default=False, help='Whether to use mixed precision training.')
 parser.add_argument('--wandb_project', type=str, default='distiller', help='The wandb project name.')
@@ -37,7 +37,7 @@ parser.add_argument('--seed', type=int, default=123, help='The seed to use.')
 parser.add_argument('--random_initialized_student', action='store_true', help='Whether the student is random initialized. If not, the en-ro-t5-small model will be used.',
 default=False)
 parser.add_argument('--experiment_name', type=str, default='', help='The name of the experiment.')
-parser.add_argument('--disable_dropout', action='store_true', help='Disables dropout in the student model.', default=False)
+parser.add_argument('--disable_dropout', action='store_true', help='Disables dropout in the student model.', default=True)
 parser.add_argument('--schedule', type=str, default='', help='The schedule to use for the KL loss decay', choices=['linear', 'cosine'])
 parser.add_argument('--warmup_steps', type=int, default=1000, help='The number of warmup steps for the KL loss decay.')
 parser.add_argument('--decay_epochs', type=int, default=5, help='The number of epochs to decay the KL loss.')
@@ -51,13 +51,13 @@ if len(args.dataset_names) == 1:
                                   dataset_names=args.dataset_names,
                                   source_target_pair=[("en", "it")],
                                   )
-    args.teacher_path = ['din0s/t5-small-de-finetuned-en-to-it', 'din0s/t5-small-fr-finetuned-en-to-it',
-                         'din0s/t5-small-ro-finetuned-en-to-it']
+    args.teacher_path = ['din0s/t5-base_fr-finetuned-en-to-it',
+                         'din0s/t5-base_ro-finetuned-en-to-it']
     init_path = 'din0s/t5-small-ro-finetuned-en-to-it'
 else:
     dm = MTDistillationDatamodule(batch_size=args.batch_size,
                                   )
-    init_path = "din0s/t5-small-finetuned-en-to-ro"
+    init_path = "din0s/t5-small-finetuned-en-to-it-b32"
 
 dm.setup()
 
