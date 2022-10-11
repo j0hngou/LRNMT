@@ -1,23 +1,22 @@
 from datasets import load_dataset
 from transformers import AutoTokenizer, T5TokenizerFast
+import matplotlib.pyplot as plt
+from matplotlib_venn import venn3, venn2
 
 
-def get_dataset(path: dict) -> dict:
+def get_dataset(path: dict, splits: list) -> dict:
     dataset = {}
-    for key, value in path.items():
-        if key == "it":
-            dataset[key] = load_dataset(value, split="train[3000:15000]")["translation"]
-        else:
-            dataset[key] = load_dataset(value)["train"]["translation"]
+    for key, split in zip(path.keys(), splits):
+        dataset[key] = load_dataset(path[key], split=f"train[{split[0]}:{split[1]}]")["translation"]
     return dataset
 
 
-def get_sentences(dataset:dict) -> dict:
+def get_sentences(dataset:dict, languages: list) -> dict:
     sentences = {}
-    for key, value in dataset.items():
+    for key, lang in zip(dataset.keys(), languages):
         sentences[key] = []
-        for pair in value:
-            sentences[key].append(pair[key])
+        for pair in dataset[key]:
+            sentences[key].append(pair[lang])
 
     return sentences
 
@@ -100,23 +99,61 @@ def pretty_print(intersection: dict, ngram: dict, ngram_name: str):
     print('*'*50)
 
 
-path = {"it": "j0hngou/ccmatrix_en-it", "fr": "j0hngou/ccmatrix_en-fr", "ro": "din0s/ccmatrix_en-ro"}
-tokenizer = AutoTokenizer.from_pretrained("t5-small")
+def plot_venn(path: dict, splits: list, languages: list, save: bool, name: str):
+    tokenizer = AutoTokenizer.from_pretrained("t5-small")
 
-dataset = get_dataset(path)
-sentences = get_sentences(dataset)
-avg_len = get_avg_len(sentences)
-tokenized_sentences = tokenize_sentences(sentences, tokenizer)
-unigrams, bigrams, trigrams = get_ngrams(tokenized_sentences)
+    dataset = get_dataset(path, splits)
+    sentences = get_sentences(dataset, languages)
+    tokenized_sentences = tokenize_sentences(sentences, tokenizer)
+    unigrams, bigrams, trigrams = get_ngrams(tokenized_sentences)
 
-unigrams_intersection = get_intersection(unigrams)
-bigrams_intersection = get_intersection(bigrams)
-trigrams_intersection = get_intersection(trigrams)
+    keys = list(path.keys())
+    for i, ngram in enumerate([unigrams, bigrams, trigrams]):
+        ngram_name = ["unigrams", "bigrams", "trigrams"][i]
+        if len(keys) == 2:
+            venn2([ngram[keys[0]], ngram[keys[1]]], keys)
+        elif len(keys) == 3:
+            venn3([ngram[keys[0]], ngram[keys[1]], ngram[keys[2]]], keys)
 
-for key in avg_len.keys():
-    print(f"Average length of {key} sentences: {avg_len[key]}")
-print('*'*50)
+        if save:
+            plt.savefig(f"venn_{ngram_name}_{name}.png")
+            plt.clf()
+        else:
+            plt.show()
 
-pretty_print(unigrams_intersection, unigrams, "Unigrams")
-pretty_print(bigrams_intersection, bigrams, "Bigrams")
-pretty_print(trigrams_intersection, trigrams, "Trigrams")
+
+def print_stats(path: dict, splits: list, languages: list):
+    tokenizer = AutoTokenizer.from_pretrained("t5-small")
+
+    dataset = get_dataset(path, splits)
+    sentences = get_sentences(dataset, languages)
+    avg_len = get_avg_len(sentences)
+    tokenized_sentences = tokenize_sentences(sentences, tokenizer)
+    unigrams, bigrams, trigrams = get_ngrams(tokenized_sentences)
+
+    unigrams_intersection = get_intersection(unigrams)
+    bigrams_intersection = get_intersection(bigrams)
+    trigrams_intersection = get_intersection(trigrams)
+
+    for key in avg_len.keys():
+        print(f"Average length of {key} sentences: {avg_len[key]}")
+    print('*' * 50)
+
+    pretty_print(unigrams_intersection, unigrams, "Unigrams")
+    pretty_print(bigrams_intersection, bigrams, "Bigrams")
+    pretty_print(trigrams_intersection, trigrams, "Trigrams")
+
+
+if __name__ == "__main__":
+    # path = {"it": "j0hngou/ccmatrix_en-it", "fr": "j0hngou/ccmatrix_en-fr", "ro": "din0s/ccmatrix_en-ro"}
+    path = {"it": "j0hngou/ccmatrix_en-it", "de": "j0hngou/ccmatrix_de-en"}
+    # path = {"it": "j0hngou/ccmatrix_en-it", "ithrs": "irenepap/en-it-hrs-data", "itlrs": "irenepap/en-it-lrs-data"}
+
+    # splits = [("", ""), ("12000", ""), ("12000", "")]
+    # splits = [("", ""), ("", ""), ("", "")]
+    splits = [("", ""), ("", "")]
+    languages = ["it", "de"]
+
+    # print_stats(path, splits, languages)
+    plot_venn(path, splits, languages, save=True, name='IT-DE')
+
