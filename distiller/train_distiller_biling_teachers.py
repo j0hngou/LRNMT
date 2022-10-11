@@ -53,6 +53,7 @@ if len(args.dataset_names) == 1:
                                   )
     args.teacher_path = ['din0s/t5-base_fr-finetuned-en-to-it',
                          'din0s/t5-base_ro-finetuned-en-to-it']
+    args.teacher_lang = ['en-fr', 'en-ro']
     init_path = 'din0s/t5-small-ro-finetuned-en-to-it'
 else:
     dm = MTDistillationDatamodule(batch_size=args.batch_size,
