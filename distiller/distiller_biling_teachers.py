@@ -90,8 +90,7 @@ class DistillerBilingTeachers(pl.LightningModule):
         for pair in batch.keys():
             logits[pair] = self.student(input_ids=batch[pair]["input_ids"],
                                         attention_mask=batch[pair]["attention_mask"],
-                                        decoder_input_ids=batch[pair]["decoder_input_ids"],
-                                        decoder_attention_mask=batch[pair]["decoder_attention_mask"],
+                                        labels=batch[pair]["decoder_input_ids"],
                                         ).logits
 
         return logits
@@ -113,8 +112,7 @@ class DistillerBilingTeachers(pl.LightningModule):
                 self.teachers[pair].eval()
                 logits[pair] = self.teachers[pair](input_ids=batch[pair]["input_ids"],
                                                    attention_mask=batch[pair]["attention_mask"],
-                                                   decoder_input_ids=batch[pair]["decoder_input_ids"],
-                                                   decoder_attention_mask=batch[pair]["decoder_attention_mask"],
+                                                   labels=batch[pair]["decoder_input_ids"],
                                                    ).logits
 
         return logits
@@ -268,8 +266,7 @@ class DistillerEnItTeachers(DistillerBilingTeachers):
                            ):
         logits = self.student(input_ids=batch[self.pair]["input_ids"],
                               attention_mask=batch[self.pair]["attention_mask"],
-                              decoder_input_ids=batch[self.pair]["decoder_input_ids"],
-                              decoder_attention_mask=batch[self.pair]["decoder_attention_mask"],
+                              labels=batch[self.pair]["decoder_input_ids"],
                               ).logits
 
         return logits
@@ -283,8 +280,7 @@ class DistillerEnItTeachers(DistillerBilingTeachers):
                 self.teachers[pair].eval()
                 logits[pair] = self.teachers[pair](input_ids=batch[self.pair]["input_ids"],
                                                    attention_mask=batch[self.pair]["attention_mask"],
-                                                   decoder_input_ids=batch[self.pair]["decoder_input_ids"],
-                                                   decoder_attention_mask=batch[self.pair]["decoder_attention_mask"],
+                                                   labels=batch[self.pair]["decoder_input_ids"],
                                                    ).logits
 
         return logits
