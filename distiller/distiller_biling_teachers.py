@@ -46,7 +46,7 @@ class DistillerBilingTeachers(pl.LightningModule):
         self.tokenizer = AutoTokenizer.from_pretrained("t5-small")
 
         self.ce_loss = CrossEntropyLoss(ignore_index=self.student.config.pad_token_id)
-        self.kl_loss = KLDivLoss(reduction='mean')
+        self.kl_loss = KLDivLoss(reduction='batchmean')
         self.cosine_loss = CosineEmbeddingLoss()
 
         self.sacrebleu = load_metric("sacrebleu")
