@@ -15,7 +15,7 @@ import json
 BATCH_SIZE = 32
 WITH_BUCKETS = True
 SAVE_DIR = "eval_results"
-BUCKET_SIZES = [16, 32, 64, 128, 256, 512]
+BUCKET_SIZES = [32, 64, 128, 256, 512]
 
 datasets = {
     "en-it": "j0hngou/ccmatrix_en-it",
