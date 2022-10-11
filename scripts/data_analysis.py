@@ -145,15 +145,23 @@ def print_stats(path: dict, splits: list, languages: list):
 
 
 if __name__ == "__main__":
-    # path = {"it": "j0hngou/ccmatrix_en-it", "fr": "j0hngou/ccmatrix_en-fr", "ro": "din0s/ccmatrix_en-ro"}
-    path = {"it": "j0hngou/ccmatrix_en-it", "de": "j0hngou/ccmatrix_de-en"}
-    # path = {"it": "j0hngou/ccmatrix_en-it", "ithrs": "irenepap/en-it-hrs-data", "itlrs": "irenepap/en-it-lrs-data"}
+    paths = []
+    paths.append({"it": "j0hngou/ccmatrix_en-it", "fr": "j0hngou/ccmatrix_en-fr", "ro": "din0s/ccmatrix_en-ro"})
+    paths.append({"it": "j0hngou/ccmatrix_en-it", "de": "j0hngou/ccmatrix_de-en"})
+    paths.append({"it": "j0hngou/ccmatrix_en-it", "ithrs": "irenepap/en-it-hrs-data", "itlrs": "irenepap/en-it-lrs-data"})
 
-    # splits = [("", ""), ("12000", ""), ("12000", "")]
-    # splits = [("", ""), ("", ""), ("", "")]
-    splits = [("", ""), ("", "")]
-    languages = ["it", "de"]
+    splits = []
+    splits.append([("", ""), ("", ""), ("", "")])
+    splits.append([("", ""), ("", "")])
+    splits.append([("", ""), ("12000", ""), ("12000", "")])
 
-    # print_stats(path, splits, languages)
-    plot_venn(path, splits, languages, save=True, name='IT-DE')
+    languages = []
+    languages.append(["it", "fr", "ro"])
+    languages.append(["it", "de"])
+    languages.append(["it", "ithrs", "itlrs"])
 
+    names = ["Italian-French-Romanian", "Italian-German", "Italian-HRS-LRS"]
+
+    for path, split, language, name in zip(paths, splits, languages, names):
+        # print_stats(path, split, language)
+        plot_venn(path, split, language, save=True, name=name)
