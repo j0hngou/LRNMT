@@ -20,6 +20,17 @@ class MTDistillationDatamodule(pl.LightningDataModule):
         group_pairs: bool = True,
         splits=[[0, 1500], [1500, 3000], [3000, 15000]],
     ):
+        """
+        Args:
+            tokenizer_name: The name of the tokenizer to use
+            dataset_names: The name of the dataset to use
+            source_target_pair: The language pairs to use
+            data_dir: The directory where the datasets are stored
+            batch_size: The batch size to use
+            num_workers: The number of workers to use
+            group_pairs: Whether to group the pairs or not, True when we want to train a model on multiple datasets
+            splits: The splits to use for the train, val and test set
+        """
         super().__init__()
         self.save_hyperparameters()
 
@@ -31,6 +42,8 @@ class MTDistillationDatamodule(pl.LightningDataModule):
 
     def setup(self, stage: Optional[str] = None):
         # Create a list with all the datasets
+
+        # If there is only one dataset use the splits from the hparams
         if len(self.hparams.dataset_names) == 1:
             types = ['val', 'test', 'train']
             self.dataset = {}
@@ -57,6 +70,10 @@ class MTDistillationDatamodule(pl.LightningDataModule):
 
     @staticmethod
     def split_dataset(datasets: List[Dataset]) -> dict[str, List[Dataset]]:
+        """
+        Split the datasets into train, val and test set. The ratios are set to have a small validation set
+        to validate the training more often.
+        """
         train_list = []
         val_list = []
         test_list = []
