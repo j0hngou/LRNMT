@@ -41,6 +41,8 @@ parser.add_argument('--disable_dropout', action='store_true', help='Disables dro
 parser.add_argument('--schedule', type=str, default='', help='The schedule to use for the KL loss decay', choices=['linear', 'cosine'])
 parser.add_argument('--warmup_steps', type=int, default=1000, help='The number of warmup steps for the KL loss decay.')
 parser.add_argument('--decay_epochs', type=int, default=5, help='The number of epochs to decay the KL loss.')
+parser.add_argument('--one_teacher', action='store_true', help='Whether to use only one teacher.', default=False)
+parser.add_argument('--end_train_split', type=int, default=15000)
 
 args = parser.parse_args()
 
@@ -50,15 +52,21 @@ if len(args.dataset_names) == 1:
     dm = MTDistillationDatamodule(batch_size=args.batch_size,
                                   dataset_names=args.dataset_names,
                                   source_target_pair=[("en", "it")],
+                                  splits=[[0, 1500], [1500, 3000], [3000, args.end_train_split]],
                                   )
-    args.teacher_path = ['din0s/t5-base_fr-finetuned-en-to-it',
-                         'din0s/t5-base_ro-finetuned-en-to-it']
-    args.teacher_lang = ['en-fr', 'en-ro']
-    init_path = 'din0s/t5-small-ro-finetuned-en-to-it'
+
+    if args.one_teacher:
+        args.teacher_path = ['din0s/t5-base-finetuned-en-to-it']
+        args.teacher_lang = ['en-it']
+    else:
+        args.teacher_path = ['din0s/t5-base_fr-finetuned-en-to-it',
+                             'din0s/t5-base_ro-finetuned-en-to-it']
+        args.teacher_lang = ['en-fr', 'en-ro']
+    init_path = "din0s/t5-small-finetuned-en-to-it"
 else:
     dm = MTDistillationDatamodule(batch_size=args.batch_size,
                                   )
-    init_path = "din0s/t5-small-finetuned-en-to-it-b32"
+    init_path = "din0s/t5-small-finetuned-en-to-it"
 
 dm.setup()
 
