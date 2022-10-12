@@ -1,6 +1,6 @@
 from datasets import load_dataset
 from transformers import AutoTokenizer, T5TokenizerFast
-from matplotlib_venn import venn3, venn2
+from venn import venn
 
 import matplotlib.pyplot as plt
 
@@ -178,13 +178,15 @@ def plot_venn(path: dict, splits: list, languages: list, save: bool, name: str) 
     tokenized_sentences = tokenize_sentences(sentences, tokenizer)
     unigrams, bigrams, trigrams = get_ngrams(tokenized_sentences)
 
-    keys = list(path.keys())
     for i, ngram in enumerate([unigrams, bigrams, trigrams]):
         ngram_name = ["unigrams", "bigrams", "trigrams"][i]
-        if len(keys) == 2:
-            venn2([ngram[keys[0]], ngram[keys[1]]], name.split('-'))
-        elif len(keys) == 3:
-            venn3([ngram[keys[0]], ngram[keys[1]], ngram[keys[2]]], name.split('-'))
+
+        # Rename the keys so that the labels in venn look nice
+        keys = list(ngram.keys())
+        for i, key in enumerate(keys):
+            ngram[name.split('-')[i]] = ngram.pop(key)
+
+        venn_diagram = venn(ngram)
 
         if save:
             plt.savefig(f"venn_{ngram_name}_{name}.png")
@@ -238,7 +240,7 @@ if __name__ == "__main__":
     languages.append(["it", "de"])
     languages.append(["it", "it", "it"])
 
-    names = ["Italian-French-Romanian", "Italian-German", "Italian-HRS-LRS"]
+    names = ["Italian-French-Romanian", "Italian-German", "Italian-Linguistically Related Synthesis-Direct Synthesis"]
 
     for path, split, language, name in zip(paths, splits, languages, names):
         # print_stats(path, split, language)
