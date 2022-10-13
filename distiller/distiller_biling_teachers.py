@@ -25,6 +25,21 @@ class DistillerBilingTeachers(pl.LightningModule):
                  warmup_steps=0,
                  init_path="din0s/t5-small-finetuned-en-to-ro",
                  ):
+        """
+
+        Args:
+            teachers: the teacher models to use for distillation
+            loss_weights: the weights for the cross entropy and KL divergence loss
+            lr: the learning rate
+            weight_decay: the weight decay
+            random_initialized_student: whether to initialize the student model randomly or not
+            disable_dropout: whether to disable dropout or not for the teachers
+            precision: the precision to use
+            schedule: the schedule to use for the loss weights
+            decay_epochs: the number of epochs to decay the loss weights
+            warmup_steps: the number of steps to warmup the loss weights
+            init_path: the path to the student model
+        """
         super().__init__()
         self.save_hyperparameters(ignore=['teachers'])
 
@@ -53,7 +68,10 @@ class DistillerBilingTeachers(pl.LightningModule):
 
         assert len(loss_weights) == 3, "loss_weights must be a list of length 3"
 
-    def _disable_dropout(self):
+    def _disable_dropout(self) -> None:
+        """
+        Disable dropout for the teacher models
+        """
         self.student.encoder.dropout.p = 0.0
         self.student.decoder.dropout.p = 0.0
         for i in range(self.student.config.num_layers):
@@ -72,19 +90,12 @@ class DistillerBilingTeachers(pl.LightningModule):
                            batch: dict,
                            ) -> dict:
         """
-        Get the logits from the student model and the teacher model
+        Get the logits from the student model
         Args:
             batch: The batch to get the logits from
         Returns:
             The student logits
         """
-
-        # TODO: [NMTDL4NLP-25] use this for parallel pass for all pairs, code in training step need to change
-        # student_logits = self.student(input_ids=torch.stack([pair["input_ids"] for pair in batch.values()]),
-        #                               attention_mask=torch.stack([pair["attention_mask"] for pair in batch.values()]),
-        #                               decoder_input_ids=torch.stack([pair["decoder_input_ids"] for pair in batch.values()]),
-        #                               decoder_attention_mask=torch.stack([pair["decoder_attention_mask"] for pair in batch.values()]),
-        #                               **kwargs).logits
 
         logits = {}
         for pair in batch.keys():
@@ -98,7 +109,7 @@ class DistillerBilingTeachers(pl.LightningModule):
     def get_logits_teacher(self,
                            batch: dict, ) -> dict:
         """
-        Get the logits from the student model and the teacher model
+        Get the logits from the teacher model
         Args:
             batch: The batch to get the logits from
         Returns:
@@ -121,7 +132,7 @@ class DistillerBilingTeachers(pl.LightningModule):
                 batch: dict,
                 mode: str) -> dict:
         """
-        Forward pass through the student and teacher model to get their logits for each language pair.
+        Forward pass to get the logits from the teacher(s) and the student and compute the loss
         Args:
             batch: The batch to pass through the student model and the teacher model
         Returns:
@@ -173,6 +184,15 @@ class DistillerBilingTeachers(pl.LightningModule):
         return outputs
 
     def _test_eval_epoch_end(self, outputs: dict, mode: str) -> dict:
+        """
+        Compute the average loss and bleu score
+        Args:
+            outputs: The outputs of the validation or test step
+            mode: a string to indicate the mode for logging
+
+        Returns:
+            The average loss and bleu score
+        """
         bleu_score = self.sacrebleu.compute()["score"]
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
         avg_ce_loss = torch.stack([x['ce_loss'] for x in outputs]).mean()
@@ -184,6 +204,16 @@ class DistillerBilingTeachers(pl.LightningModule):
         return {f"{mode}_loss": avg_loss, f"{mode}_bleu": bleu_score}
 
     def _compute_ce_kl(self, student_logits: dict, teacher_logits: dict, batch: dict) -> dict:
+        """
+        Compute the cross entropy and KL divergence loss
+        Args:
+            student_logits: The logits from the student model
+            teacher_logits: The logits from the teacher model
+            batch: The batch to compute the loss on
+
+        Returns:
+            The cross entropy and KL divergence loss
+        """
         # Cross entropy loss
         ce_loss = 0
         total_samples = 0
@@ -215,7 +245,12 @@ class DistillerBilingTeachers(pl.LightningModule):
 
         return {"loss": loss, "ce_loss": ce_loss, "kl_loss": kl_loss}
 
-    def _compute_bleu(self, batch: dict):
+    def _compute_bleu(self, batch: dict) -> None:
+        """
+        Compute the bleu score
+        Args:
+            batch: The batch to compute the bleu score on
+        """
         for pair in batch.keys():
             prediction_ids = self.student.generate(batch[pair]["input_ids"], num_beams=5)
             prediction = self.tokenizer.batch_decode(prediction_ids, skip_special_tokens=True)
@@ -223,7 +258,10 @@ class DistillerBilingTeachers(pl.LightningModule):
             target = [[t] for t in target]
             self.sacrebleu.add_batch(predictions=prediction, references=target)
 
-    def _update_loss_weights(self):
+    def _update_loss_weights(self) -> None:
+        """
+        Update the loss weights
+        """
         if self.global_step < self.hparams.warmup_steps:
             self.hparams.loss_weights["kl"] = 1.0
             self.hparams.loss_weights["ce"] = 0.0
@@ -264,6 +302,14 @@ class DistillerEnItTeachers(DistillerBilingTeachers):
     def get_logits_student(self,
                            batch: dict,
                            ):
+        """
+        Get the logits from the student model
+        Args:
+            batch: The batch to get the logits from
+
+        Returns:
+            The logits from the student model
+        """
         logits = self.student(input_ids=batch[self.pair]["input_ids"],
                               attention_mask=batch[self.pair]["attention_mask"],
                               labels=batch[self.pair]["decoder_input_ids"],
@@ -273,6 +319,14 @@ class DistillerEnItTeachers(DistillerBilingTeachers):
 
     def get_logits_teacher(self,
                            batch: dict, ) -> dict:
+        """
+        Get the logits from the teacher model
+        Args:
+            batch: The batch to get the logits from
+
+        Returns:
+            The logits from the teacher model
+        """
         logits = {}
 
         for pair in self.teachers.keys():
@@ -286,6 +340,16 @@ class DistillerEnItTeachers(DistillerBilingTeachers):
         return logits
 
     def _compute_ce_kl(self, student_logits: torch.Tensor, teacher_logits: dict, batch: dict) -> dict:
+        """
+        Compute the cross entropy and KL divergence loss
+        Args:
+            student_logits: The logits from the student model
+            teacher_logits: The logits from the teacher model
+            batch: The batch to compute the loss on
+
+        Returns:
+            The cross entropy and KL divergence loss
+        """
         # Cross entropy loss
         ce_loss = self.ce_loss(student_logits.permute(0, 2, 1), batch[self.pair]["decoder_input_ids"])
 

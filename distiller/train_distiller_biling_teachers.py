@@ -11,7 +11,6 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from datamodules import MTDistillationDatamodule
 from torch.nn import ModuleDict
 
-
 parser = argparse.ArgumentParser()
 parser.add_argument('--teacher_path', nargs='+', type=str,
                     help='The path(or huggingface path) to the teacher model. If there are multiple, they should be separated by a space.',
@@ -34,11 +33,14 @@ parser.add_argument('--fp16', action='store_true', default=False, help='Whether 
 parser.add_argument('--wandb_project', type=str, default='distiller', help='The wandb project name.')
 parser.add_argument('--val_check_interval', type=float, default=0.05, help='The validation check interval.')
 parser.add_argument('--seed', type=int, default=123, help='The seed to use.')
-parser.add_argument('--random_initialized_student', action='store_true', help='Whether the student is random initialized. If not, the en-ro-t5-small model will be used.',
-default=False)
+parser.add_argument('--random_initialized_student', action='store_true',
+                    help='Whether the student is random initialized. If not, the en-ro-t5-small model will be used.',
+                    default=False)
 parser.add_argument('--experiment_name', type=str, default='', help='The name of the experiment.')
-parser.add_argument('--disable_dropout', action='store_true', help='Disables dropout in the student model.', default=True)
-parser.add_argument('--schedule', type=str, default='', help='The schedule to use for the KL loss decay', choices=['linear', 'cosine'])
+parser.add_argument('--disable_dropout', action='store_true', help='Disables dropout in the student model.',
+                    default=True)
+parser.add_argument('--schedule', type=str, default='', help='The schedule to use for the KL loss decay',
+                    choices=['linear', 'cosine'])
 parser.add_argument('--warmup_steps', type=int, default=1000, help='The number of warmup steps for the KL loss decay.')
 parser.add_argument('--decay_epochs', type=int, default=5, help='The number of epochs to decay the KL loss.')
 parser.add_argument('--one_teacher', action='store_true', help='Whether to use only one teacher.', default=False)
