@@ -186,7 +186,7 @@ def plot_venn(path: dict, splits: list, languages: list, save: bool, name: str) 
         for i, key in enumerate(keys):
             ngram[name.split('-')[i]] = ngram.pop(key)
 
-        venn_diagram = venn(ngram)
+        venn_diagram = venn(ngram, fmt="{percentage:.1f}%", fontsize=20)
 
         if save:
             plt.savefig(f"venn_{ngram_name}_{name}.png")
@@ -240,7 +240,7 @@ if __name__ == "__main__":
     languages.append(["it", "de"])
     languages.append(["it", "it", "it"])
 
-    names = ["Italian-French-Romanian", "Italian-German", "Italian-Linguistically Related Synthesis-Direct Synthesis"]
+    names = ["Italian-French-Romanian", "Italian-German", "Italian-Related Synthesis-Direct Synthesis"]
 
     for path, split, language, name in zip(paths, splits, languages, names):
         # print_stats(path, split, language)
