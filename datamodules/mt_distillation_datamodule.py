@@ -73,6 +73,11 @@ class MTDistillationDatamodule(pl.LightningDataModule):
         """
         Split the datasets into train, val and test set. The ratios are set to have a small validation set
         to validate the training more often.
+        Args:
+            datasets: List of datasets to split
+        Returns:
+            Dictionary with the train, val and test set
+
         """
         train_list = []
         val_list = []
@@ -121,7 +126,15 @@ class MTDistillationDatamodule(pl.LightningDataModule):
             drop_last=True
         )
 
-    def collate_fn_group(self, batch: list[dict[str, str]]):
+    def collate_fn_group(self, batch: list[dict[str, str]]) -> dict[str, torch.Tensor]:
+        """
+        Collate function that groups the pairs together. This is used when we want to train a model on multiple datasets
+        Args:
+            batch: The batch to collate
+
+        Returns:
+            The collated batch
+        """
         sentences = {}
 
         # Tokenize
@@ -151,7 +164,15 @@ class MTDistillationDatamodule(pl.LightningDataModule):
 
         return sentences
 
-    def collate_fn(self, batch: list[dict[str, str]]):
+    def collate_fn(self, batch: list[dict[str, str]]) -> dict[str, torch.Tensor]:
+        """
+        Collate function for the dataloader. It tokenizes the sentences and returns a dictionary with the
+        tokenized sentences.
+        Args:
+            batch: List of dictionaries with the sentences of the languages.
+        Returns:
+            Dictionary with the tokenized sentences.
+        """
         sentences = {}
 
         # Tokenize
@@ -169,6 +190,7 @@ class MTDistillationDatamodule(pl.LightningDataModule):
 class MTDistillationDataset(Dataset):
     def __init__(self, dataset_name, source_lang, target_lang, split: Optional[list[int]] = None):
 
+        # Load the dataset, if split is not provided, load the whole dataset
         if split:
             self.dataset = load_dataset(dataset_name, split=f"train[{split[0]}:{split[1]}]")
         else:
@@ -181,7 +203,10 @@ class MTDistillationDataset(Dataset):
     def __len__(self):
         return len(self.dataset)
 
-    def process_data(self):
+    def process_data(self) -> None:
+        """
+        Process the dataset to only contain the source and target language.
+        """
         self.dataset = self.dataset.map(
             self.prep_ccmatrix,
             batched=True,
@@ -190,6 +215,13 @@ class MTDistillationDataset(Dataset):
 
     @staticmethod
     def prep_ccmatrix(batch: dict[str, list]) -> dict[str, list]:
+        """
+        Process the batch to only contain the source and target language.
+        Args:
+            batch: The batch to process.
+        Returns:
+            The processed batch.
+        """
         new_batch = {}
 
         pairs = batch["translation"]
@@ -199,6 +231,7 @@ class MTDistillationDataset(Dataset):
         return new_batch
 
     def __getitem__(self, idx):
+        # Add the prefix for the translation from source to target language
         src_lang = self.get_full_lang_name(self.source_lang)
         tgt_lang = self.get_full_lang_name(self.target_lang)
         prefix = f"translate {src_lang} to {tgt_lang}: "
@@ -209,7 +242,16 @@ class MTDistillationDataset(Dataset):
         return source, target, self.source_lang, self.target_lang
 
     @staticmethod
-    def get_full_lang_name(lang):
+    def get_full_lang_name(lang) -> str:
+        """
+        Get the full language name from the language code
+        Args:
+            lang: language code
+
+        Returns:
+            full language name
+        """
+
         if lang == "en":
             return "English"
         elif lang == "ro":
