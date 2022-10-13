@@ -4,6 +4,7 @@ from tqdm import tqdm
 
 import torch
 
+
 def perplexity(
     model: AutoModelForSeq2SeqLM,
     tokenizer: AutoTokenizer,
