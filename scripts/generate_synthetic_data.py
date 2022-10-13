@@ -9,7 +9,16 @@ from transformers import AutoModelForSeq2SeqLM
 from datamodules import MTDistillationDatamodule
 from transformers import AutoTokenizer
 
-def preprocessString(string):
+
+def preprocessString(string) -> str:
+    """
+    Delete prefix from string.
+    Args:
+        string: The string to preprocess.
+
+    Returns:
+        The string without the prefix.
+    """
     # escape double quotes
     string = string.replace('"', '\\"')
     # remove prefix
@@ -18,17 +27,27 @@ def preprocessString(string):
     return string
 
 
-def generate_synthetic_data(model, dm, save_location, num_samples=1000):
+def generate_synthetic_data(model, dm, save_location, num_samples=1000) -> None:
+    """
+    Generate synthetic data from a model.
+    Args:
+        model: The model to generate data from.
+        dm: The datamodule to use.
+        save_location: The location to save the synthetic data.
+        num_samples: The number of samples to generate.
+    """
     num_generated = 0
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     batch_size = dm.train_dataloader().batch_size
     model.to(device)
+
     for batch in tqdm.tqdm(dm.train_dataloader(), total=num_samples // batch_size):
         input_ids = batch['it-en']['input_ids'].to(device)
         attention_mask = batch['it-en']['attention_mask'].to(device)
         output = model.generate(input_ids, attention_mask=attention_mask, max_length=256, num_beams=5, early_stopping=True)
         decoded = tokenizer.batch_decode(output, skip_special_tokens=True)
         decoded_input = tokenizer.batch_decode(batch['it-en']['input_ids'], skip_special_tokens=True)
+
         with open(save_location, 'a', encoding='utf-8') as f:
             for line in zip(decoded_input, decoded):
                 f.write(f'{{ "it": "{preprocessString(line[0])}", "en": "{preprocessString(line[1])}" }}\n')
