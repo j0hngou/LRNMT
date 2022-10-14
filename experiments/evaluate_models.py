@@ -44,6 +44,9 @@ models = {
     "lrs-base" : "din0s/t5-base-finetuned-en-to-it-lrs",
     "lrs-small-back" : "din0s/t5-small-finetuned-en-to-it-lrs-back",
     "lrs-base-back" : "din0s/t5-base-finetuned-en-to-it-lrs-back",
+    "single-kd" : "j0hngou/1teacherdistilllowresource",
+    "single-kd-back" : "j0hngou/1teacherdistillbacktranslate",
+    "dual-kd" : "j0hngou/2teachersdistilllowresource",
     "dual-kd-back" : "j0hngou/2teachersdistillbacktranslation-en-it",
 }
 
@@ -74,6 +77,9 @@ table_model_data_dict = {
     ("Italian", models["lrs-small-back"]): datasets["en-it"],
     ("Italian", models["lrs-base-back"]): datasets["en-it"],
     # Knowledge distillation
+    ("Italian", models["single-kd"]): datasets["en-it"],
+    ("Italian", models["single-kd-back"]): datasets["en-it"],
+    ("Italian", models["dual-kd"]): datasets["en-it"],
     ("Italian", models["dual-kd-back"]): datasets["en-it"],
 }
 
