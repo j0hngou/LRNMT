@@ -13,38 +13,37 @@ import os
 import json
 import argparse
 
-
 datasets = {
-    "en-it" : "j0hngou/ccmatrix_en-it",
-    "en-ro" : "din0s/ccmatrix_en-ro",
-    "en-fr" : "j0hngou/ccmatrix_en-fr",
+    "en-it": "j0hngou/ccmatrix_en-it",
+    "en-ro": "din0s/ccmatrix_en-ro",
+    "en-fr": "j0hngou/ccmatrix_en-fr",
 }
 
 languages = {
-    "French" : "fr",
-    "Italian" : "it",
-    "Romanian" : "ro",
-    "English" : "en",
+    "French": "fr",
+    "Italian": "it",
+    "Romanian": "ro",
+    "English": "en",
 }
 
 models = {
-    "t5-small" : "t5-small",
-    "t5-base" : "t5-base",
-    "en-fr" : "j0hngou/t5-base-finetuned-en-to-fr",
-    "en-ro" : "j0hngou/t5-base-finetuned-en-to-ro",
-    "en-it" : "din0s/t5-base-finetuned-en-to-it",
-    "en-it-small" : "din0s/t5-small-finetuned-en-to-it",
-    "en-fr-it" : "din0s/t5-base_fr-finetuned-en-to-it",
-    "en-fr-it-small" : "din0s/t5-small-fr-finetuned-en-to-it",
-    "en-ro-it" : "din0s/t5-base_ro-finetuned-en-to-it",
-    "en-ro-it-small" : "din0s/t5-small-ro-finetuned-en-to-it",
-    "hrs-small" : "din0s/t5-small-finetuned-en-to-it-hrs",
-    "hrs-base" : "din0s/t5-base-finetuned-en-to-it-hrs",
-    "lrs-small" : "din0s/t5-small-finetuned-en-to-it-lrs",
-    "lrs-base" : "din0s/t5-base-finetuned-en-to-it-lrs",
-    "lrs-small-back" : "din0s/t5-small-finetuned-en-to-it-lrs-back",
-    "lrs-base-back" : "din0s/t5-base-finetuned-en-to-it-lrs-back",
-    "dual-kd-back" : "j0hngou/2teachersdistillbacktranslation-en-it",
+    "t5-small": "t5-small",
+    "t5-base": "t5-base",
+    "en-fr": "j0hngou/t5-base-finetuned-en-to-fr",
+    "en-ro": "j0hngou/t5-base-finetuned-en-to-ro",
+    "en-it": "din0s/t5-base-finetuned-en-to-it",
+    "en-it-small": "din0s/t5-small-finetuned-en-to-it",
+    "en-fr-it": "din0s/t5-base_fr-finetuned-en-to-it",
+    "en-fr-it-small": "din0s/t5-small-fr-finetuned-en-to-it",
+    "en-ro-it": "din0s/t5-base_ro-finetuned-en-to-it",
+    "en-ro-it-small": "din0s/t5-small-ro-finetuned-en-to-it",
+    "hrs-small": "din0s/t5-small-finetuned-en-to-it-hrs",
+    "hrs-base": "din0s/t5-base-finetuned-en-to-it-hrs",
+    "lrs-small": "din0s/t5-small-finetuned-en-to-it-lrs",
+    "lrs-base": "din0s/t5-base-finetuned-en-to-it-lrs",
+    "lrs-small-back": "din0s/t5-small-finetuned-en-to-it-lrs-back",
+    "lrs-base-back": "din0s/t5-base-finetuned-en-to-it-lrs-back",
+    "dual-kd-back": "j0hngou/2teachersdistillbacktranslation-en-it",
 }
 
 bar_plot_model_data_dict = {
@@ -137,8 +136,8 @@ def do_eval(model, train_args, tokenized_test_set, data_collator, tokenizer):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--result_type', type=str, default='bar_plot', choices=['bar_plot', 'table'])
-    parser.add_argument('--save_dir', type=str, default = 'eval_results')
-    parser.add_argument('--batch_size', type=int, default=32)
+    parser.add_argument('--save_dir', type=str, default='eval_results')
+    parser.add_argument('--batch_size', type=int, default=8)
     parser.add_argument('--bucket_sizes', type=list, default=[64, 128, 512])
 
     args = parser.parse_args()
@@ -184,7 +183,7 @@ if __name__ == '__main__':
             for bucket in bucket_sizes:
                 test_set_i = test_set.filter(
                     lambda x: len(x["translation"]["en"]) <= bucket
-                    and len(x["translation"]["en"]) > prev_bucket
+                              and len(x["translation"]["en"]) > prev_bucket
                 )
                 prev_bucket = bucket
 
