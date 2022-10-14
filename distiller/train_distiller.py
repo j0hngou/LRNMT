@@ -4,7 +4,7 @@ import argparse
 
 sys.path.append('../')
 
-from distiller import DistillerBilingTeachers, DistillerEnItTeachers
+from distiller_lightning_module import DistillerBilingTeachers, DistillerEnItTeachers
 from transformers import AutoModelForSeq2SeqLM
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
