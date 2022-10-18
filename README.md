@@ -42,8 +42,7 @@ conda env create -f env.yml
 ```
 
 ## Results
-The results can be fully replicated by running the notebooks in the experiments folder.
-
+The results can be fully replicated by running the notebooks [experiments/barplot.ipynb](experiments/barplot.ipynb), [experiments/evaluate_models.py](experiments/evaluate_models.py) and [experiments/table.ipynb](experiments/table.ipynb) in the [experiments](experiments) folder.
 <img src="https://github.com/j0hngou/LRNMT/blob/master/images/results.png" width="30%" height="50%">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="https://github.com/j0hngou/LRNMT/blob/master/images/barplot.png" width="50%" height="50%">
 
 ## Training
@@ -63,4 +62,3 @@ python scripts/generate_synthetic_data.py --model_name "t5-base"
 
 #
 The project was developed for the MSc AI course "Deep Learning for Natural Language Processing" at the University of Amsterdam.
-
