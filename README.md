@@ -15,7 +15,7 @@ conda env create -f env.yml
 │   ├── ccmatrix.py # CCMatrix Dataset DataModule
 │   └── mt_distillation_datamodule.py # MT Distillation Dataset DataModule
 ├── distiller # Distillation Module
-│   ├── distiller_lightning_module.py # Distillation Lightning Module
+│   ├── distiller_lightning_module.py # Distiller Lightning Module
 │   └── train_distiller.py # Distillation Training Script
 ├── env.yml # Conda Environment
 ├── experiments # Experiment Folder
