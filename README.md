@@ -11,35 +11,34 @@ conda env create -f env.yml
 
 ## Project Structure
 ```
-├── datamodules
-│   ├── ccmatrix.py
-│   └── mt_distillation_datamodule.py
-├── distiller
-│   ├── distiller_lightning_module.py
-│   └── train_distiller.py
-├── env.yml
-├── experiments
-│   ├── barplot.ipynb
-│   ├── eval_results
-│   ├── evaluate_models.py
-│   └── table.ipynb
-├── images
-├── lisa
-├── lisa_cheatsheet.md
-├── README.md
-└── scripts
-    ├── data_analysis.py
-    ├── finetune.py
-    ├── generate_synthetic_data.py
-    ├── init_datasets.py
-    ├── lstm
-    │   ├── build_vocab.py
-    │   ├── config.yaml
-    │   ├── download_dataset.py
-    │   └── validations.txt
-    ├── perplexity.py
-    ├── sample_ccmatrix.py
-    └── synthesis_merge.py 
+├── datamodules # PyTorch Lightning DataModules
+│   ├── ccmatrix.py # CCMatrix Dataset DataModule
+│   └── mt_distillation_datamodule.py # MT Distillation Dataset DataModule
+├── distiller # Distillation Module
+│   ├── distiller_lightning_module.py # Distillation Lightning Module
+│   └── train_distiller.py # Distillation Training Script
+├── env.yml # Conda Environment
+├── experiments # Experiment Folder
+│   ├── barplot.ipynb # Barplot Notebook
+│   ├── eval_results # Evaluation Results
+│   ├── evaluate_models.py # Evaluation Script
+│   └── table.ipynb # Table Notebook
+├── images # Images
+├── lisa # lisa cluster job scripts
+├── lisa_cheatsheet.md # lisa cluster cheatsheet
+├── README.md # README
+└── scripts # Scripts
+    ├── data_analysis.py # Data Analysis Script
+    ├── finetune.py # Finetuning Script
+    ├── generate_synthetic_data.py # Synthetic Data Generation Script
+    ├── init_datasets.py # Dataset Initialization Script
+    ├── lstm # LSTM Baseline
+    │   ├── build_vocab.py # Vocabulary Building Script
+    │   ├── config.yaml # Configuration File
+    │   └── download_dataset.py # Dataset Download Script
+    ├── perplexity.py # Perplexity Calculation Script
+    ├── sample_ccmatrix.py # CCMatrix Sampling Script
+    └── synthesis_merge.py # Synthetic Data Merging Script
 ```
 
 ## Results
