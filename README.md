@@ -63,3 +63,5 @@ python scripts/generate_synthetic_data.py --model_name "t5-base"
 
 #
 The project was developed for the MSc AI course "Deep Learning for Natural Language Processing" at the University of Amsterdam.
+
+The report can be found [here](HarvestingLinguisticallyRelatedLanguagesForLow-ResourceNMT.pdf)
