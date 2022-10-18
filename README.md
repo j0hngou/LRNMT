@@ -15,7 +15,7 @@ conda env create -f env.yml
 │   ├── ccmatrix.py # CCMatrix Dataset DataModule
 │   └── mt_distillation_datamodule.py # MT Distillation Dataset DataModule
 ├── distiller # Distillation Module
-│   ├── distiller_lightning_module.py # Distiller Lightning Module
+│   ├── distiller_lightning_module.py # Distillation Lightning Module
 │   └── train_distiller.py # Distillation Training Script
 ├── env.yml # Conda Environment
 ├── experiments # Experiment Folder
@@ -42,11 +42,12 @@ conda env create -f env.yml
 ```
 
 ## Results
-The results can be fully replicated by running the notebooks [experiments/barplot.ipynb](experiments/barplot.ipynb), [experiments/evaluate_models.py](experiments/evaluate_models.py) and [experiments/table.ipynb](experiments/table.ipynb) in the [experiments](experiments) folder.
+The results can be fully replicated by running the notebooks in the experiments folder.
+
 <img src="https://github.com/j0hngou/LRNMT/blob/master/images/results.png" width="30%" height="50%">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="https://github.com/j0hngou/LRNMT/blob/master/images/barplot.png" width="50%" height="50%">
 
 ## Training
-The distilled model can be obtain by running the following command:
+The distilled model can be obtained by running the following command:
 ```
 python distiller/train_distiller.py
 ```
